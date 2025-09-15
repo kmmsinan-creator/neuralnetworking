@@ -1,0 +1,80 @@
+<!doctype html>
+</div>
+
+
+<h2 style="text-align:center;">Sample rows (first 50)</h2>
+<div id="sample_table" style="max-width:900px;margin: 0 auto 40px"></div>
+
+
+<script>
+async function fetchJSON(path) {
+const res = await fetch(path);
+if (!res.ok) throw new Error('Failed to fetch ' + path + ' status=' + res.status);
+return await res.json();
+}
+
+
+async function loadAndDraw(){
+const status = document.getElementById('status');
+status.innerText = 'Loading...';
+try{
+const data = await fetchJSON('processed_data.json');
+status.innerText = 'Drawing charts';
+
+
+// Survival count
+const survCounts = data.survival_counts;
+const survX = Object.keys(survCounts).map(k => k);
+const survY = Object.keys(survCounts).map(k => survCounts[k]);
+Plotly.newPlot('survival_count', [{ x: survX, y: survY, type: 'bar' }], { title: 'Survival Count (0=No,1=Yes)'});
+
+
+// Survival by sex
+const sexKeys = Object.keys(data.survival_by_sex);
+const sexVals = sexKeys.map(k => data.survival_by_sex[k]);
+Plotly.newPlot('survival_by_sex', [{ x: sexKeys, y: sexVals, type: 'bar' }], { title: 'Survival Rate by Sex', yaxis:{tickformat:'.0%'} });
+
+
+// Pclass
+const pclassKeys = Object.keys(data.survival_by_pclass);
+const pclassVals = pclassKeys.map(k => data.survival_by_pclass[k]);
+Plotly.newPlot('survival_by_pclass', [{ x: pclassKeys, y: pclassVals, type: 'bar' }], { title: 'Survival Rate by Pclass', yaxis:{tickformat:'.0%'} });
+
+
+// Age distributions
+const agesSurv = data.age_by_survival.survived;
+const agesNot = data.age_by_survival.not_survived;
+const trace1 = { x: agesSurv, type: 'histogram', opacity: 0.7, name: 'Survived' };
+const trace2 = { x: agesNot, type: 'histogram', opacity: 0.7, name: 'Not Survived' };
+Plotly.newPlot('age_dist', [trace1, trace2], { title: 'Age Distribution by Survival', barmode: 'overlay' });
+
+
+// Embarked
+const embKeys = Object.keys(data.survival_by_embarked);
+const embVals = embKeys.map(k => data.survival_by_embarked[k]);
+Plotly.newPlot('survival_by_embarked', [{ x: embKeys, y: embVals, type: 'bar' }], { title: 'Survival Rate by Embarked', yaxis:{tickformat:'.0%'} });
+
+
+// Sample rows table
+const sample = data.sample_rows || [];
+if(sample.length){
+let html = '<table><thead><tr>' + Object.keys(sample[0]).map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody>';
+html += sample.map(r => '<tr>' + Object.values(r).map(v => '<td>'+ (v===null? '': v) +'</td>').join('') + '</tr>').join('');
+html += '</tbody></table>';
+document.getElementById('sample_table').innerHTML = html;
+}
+
+
+status.innerText = 'Ready';
+}catch(err){
+status.innerText = 'Error: ' + err.message;
+console.error(err);
+}
+}
+
+
+// Auto-run on load
+window.addEventListener('load', loadAndDraw);
+</script>
+</body>
+</html>
