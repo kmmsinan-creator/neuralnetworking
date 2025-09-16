@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Titanic Voyage — EDA Dashboard</title>
+<title>Titanic Survivors' Tales — EDA Dashboard</title>
 
 <!-- Client-side libs -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
@@ -92,20 +92,24 @@ function drawChart(ctx, type, labels, data, title){
         borderWidth:2, 
         fill:type==='line'?false:true, 
         tension:0.2,
-        backgroundColor:['#ff9999','#ff4d4d','#b30000','#660000'],
-        borderColor:'#ffcccc'
+        backgroundColor:['#ffcc66','#ff9999','#66e0ff','#d9b3ff','#ffb366'],
+        borderColor:'#fff8f0'  // light ivory borders for contrast
       }]
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, title:{display:true,text:title,color:'#f8e9e9'}},
+      plugins:{ 
+        legend:{labels:{color:'#fff8f0'}}, 
+        title:{display:true,text:title,color:'#fff8f0'} 
+      },
       scales:(type==='pie'||type==='doughnut')?{}:{
-        y:{ beginAtZero:true, suggestedMax:100, ticks:{ callback:v=>v+'%', color:'#f8e9e9' } },
-        x:{ ticks:{ color:'#f8e9e9' } }
+        y:{ beginAtZero:true, ticks:{ callback:v=>v+'%', color:'#fff8f0' } },
+        x:{ ticks:{ color:'#fff8f0' } }
       }
     }
   });
 }
+
 </script>
 </body>
 </html>
