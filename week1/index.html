@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Titanic Survivors' Tales — EDA Dashboard</title>
+<title>Titanic Voyage — EDA Dashboard</title>
 
 <!-- Client-side libs -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
@@ -12,14 +12,14 @@
 
 <style>
 :root{
-  --bg:#800000;          /* maroon base */
+  --bg:#800000;          /* maroon background */
   --bg-2:#5a0000;        /* darker maroon */
   --panel:#660000;       /* panel background */
-  --ink:#f8e9e9;         /* text color (light rose) */
-  --muted:#d4a5a5;       /* muted text */
-  --brand:#ff9999;       /* accent 1 (soft pink) */
-  --brand-2:#ff4d4d;     /* accent 2 (red-rose) */
-  --ring:rgba(255,153,153,.35);
+  --ink:#fff8f0;         /* ivory text */
+  --muted:#e0cfcf;       /* muted text */
+  --brand:#ffcc66;       /* gold accent */
+  --brand-2:#ff9999;     /* pink accent */
+  --ring:rgba(255,204,102,.35);
   --card:rgba(255,255,255,.06);
   --soft:rgba(255,255,255,.08);
   --shadow:0 14px 35px rgba(0,0,0,.45);
@@ -27,7 +27,7 @@
 *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 body{
   min-height:100vh;
-  background: var(--bg);  /* solid maroon background */
+  background: var(--bg);
   color:var(--ink);
   padding:28px
 }
@@ -50,12 +50,12 @@ button:focus,select:focus{outline:none;box-shadow:0 0 0 3px var(--ring)}
 @media(max-width:900px){.cols-3,.cols-2{grid-template-columns:1fr}}
 
 .kpi{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;transition:.25s}
-.kpi:hover{transform:translateY(-3px);border-color:rgba(255,153,153,.45)}
+.kpi:hover{transform:translateY(-3px);border-color:rgba(255,204,102,.45)}
 .kpi .label{color:var(--muted);font-size:.9rem}
 .kpi .value{font-size:1.7rem;font-weight:800;margin-top:6px;background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
 
 .pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,77,77,.12);border:1px solid rgba(255,77,77,.28);font-size:.95rem}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,204,102,.12);border:1px solid rgba(255,204,102,.28);font-size:.95rem}
 .badge{font-size:.85rem;color:var(--muted)}
 
 .card{background:var(--soft);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
@@ -71,16 +71,15 @@ hr.sep{border:none;height:1px;background:linear-gradient(90deg,rgba(255,255,255,
 </head>
 <body>
   <div class="container">
-    <!-- (same HTML content as before) -->
-    <!-- No changes needed inside body except style updates above -->
+    <!-- your original dashboard body content goes here (unchanged) -->
   </div>
 
 <script>
-const CSV_URL = 'train.csv'; // adjust to 'data/train.csv' if you move it
+const CSV_URL = 'train.csv'; // adjust if needed
 
-// Utilities (same as before)...
+// Utilities same as before...
 
-// Chart helper (with maroon dataset colors)
+// Chart helper with contrasting colors
 function drawChart(ctx, type, labels, data, title){
   return new Chart(ctx, {
     type,
@@ -93,7 +92,7 @@ function drawChart(ctx, type, labels, data, title){
         fill:type==='line'?false:true, 
         tension:0.2,
         backgroundColor:['#ffcc66','#ff9999','#66e0ff','#d9b3ff','#ffb366'],
-        borderColor:'#fff8f0'  // light ivory borders for contrast
+        borderColor:'#fff8f0'
       }]
     },
     options: {
@@ -109,7 +108,6 @@ function drawChart(ctx, type, labels, data, title){
     }
   });
 }
-
 </script>
 </body>
 </html>
