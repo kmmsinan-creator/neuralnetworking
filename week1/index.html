@@ -1,112 +1,345 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Titanic 3D EDA Dashboard</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #0d1117; /* Dark background */
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-    h1 {
-      padding: 20px;
-      color: #58a6ff;
-    }
-    .chart-container {
-      width: 90%;
-      max-width: 1000px;
-      margin: 20px auto;
-      background: #161b22;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0px 4px 20px rgba(0,0,0,0.6);
-    }
-    .plot {
-      width: 100%;
-      height: 500px;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Titanic Voyage — 3D EDA Dashboard (Themed)</title>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+
+<style>
+:root{
+  --bg-start: #041026;   /* deep navy */
+  --bg-end:   #260833;   /* dark violet */
+  --panel: rgba(18,10,30,0.62);
+  --ink: #e9edf6;
+  --muted: #a5b0c5;
+  --card: rgba(255,255,255,0.04);
+  --soft: rgba(255,255,255,0.06);
+  --shadow: 0 18px 40px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{
+  min-height:100vh;
+  background: radial-gradient(900px 500px at 10% 10%, rgba(38,8,51,0.45) 0%, rgba(4,16,38,0.6) 40%),
+              linear-gradient(120deg, var(--bg-start), var(--bg-end));
+  color:var(--ink);
+  padding:28px;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+.container{max-width:1200px;margin:0 auto}
+
+.header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#6EE7D7,#8AA3FF);box-shadow:var(--shadow)}
+.title h1{font-size:clamp(1.6rem,2.4vw,2.1rem);line-height:1.1}
+.title p{color:var(--muted);margin-top:6px}
+
+.toolbar{display:flex;align-items:center;gap:10px}
+select,button{background:rgba(255,255,255,.05);color:var(--ink);border:1px solid rgba(255,255,255,.08);padding:8px 10px;border-radius:10px;cursor:pointer}
+button:focus,select:focus{outline:none;box-shadow:0 0 0 3px rgba(138,163,255,.08)}
+
+.panel{background:linear-gradient(180deg, rgba(10,10,20,0.5), rgba(12,6,20,0.45)); border-radius:18px; padding:18px; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.03)}
+.grid{display:grid;gap:14px}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:900px){.cols-3,.cols-2{grid-template-columns:1fr}}
+
+.kpi{background:var(--card);border-radius:14px;padding:14px 16px}
+.kpi .label{color:var(--muted);font-size:.9rem}
+.kpi .value{font-size:1.6rem;font-weight:800;margin-top:6px;background:linear-gradient(90deg,#6EE7D7,#8AA3FF);-webkit-background-clip:text;color:transparent}
+
+.pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(138,163,255,.08);border:1px solid rgba(138,163,255,.06);font-size:.95rem}
+.badge{font-size:.85rem;color:var(--muted)}
+
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));border-radius:12px;padding:12px;box-shadow:inset -4px -4px 12px rgba(255,255,255,0.02), inset 6px 6px 18px rgba(0,0,0,0.45)}
+.card h3{font-size:1.05rem;margin-bottom:8px}
+.chart{position:relative;height:320px;border-radius:10px;overflow:hidden;padding:6px}
+
+/* Small responsive tweak for Plotly containers */
+.plotly-graph-div{border-radius:10px;background:transparent !important}
+
+/* Footer */
+.hr{height:1px;background:linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.06));margin:20px 0;border-radius:2px}
+.footer{text-align:center;color:var(--muted);margin-top:18px;font-size:.9rem}
+</style>
 </head>
 <body>
-  <h1>🚢 Titanic EDA Dashboard (3D Version)</h1>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="title">
+          <h1>Titanic Voyage — 3D EDA Dashboard</h1>
+          <p>Interactive 3D charts — rotate, zoom & inspect (client-side CSV)</p>
+        </div>
+      </div>
 
-  <div class="chart-container">
-    <h2>3D Bar Chart – Survival by Class</h2>
-    <div id="bar3d" class="plot"></div>
+      <div class="toolbar">
+        <span class="badge">Slice charts by:</span>
+        <select id="ctlSex">
+          <option value="all">All passengers</option>
+          <option value="female">Females only</option>
+          <option value="male">Males only</option>
+        </select>
+        <span class="badge" id="ctlSexBadge">(All)</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="grid cols-3">
+        <div class="kpi"><div class="label">Passengers</div><div class="value" id="statTotal">—</div></div>
+        <div class="kpi"><div class="label">Survivors</div><div class="value" id="statSurvivors">—</div></div>
+        <div class="kpi"><div class="label">Overall survival</div><div class="value" id="statRate">—</div></div>
+      </div>
+      <div class="pills">
+        <span class="pill">Female survival: <strong id="pillFemale">—</strong></span>
+        <span class="pill">Male survival: <strong id="pillMale">—</strong></span>
+        <span class="pill">Gender Δ: <strong id="pillDeltaGender">—</strong></span>
+        <span class="pill">Class Δ (1st–3rd): <strong id="pillDeltaClass">—</strong></span>
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="grid cols-2">
+      <div class="card"><h3>By Passenger Class</h3><div class="chart" id="chartPclass"></div></div>
+      <div class="card"><h3>By Gender</h3><div class="chart" id="chartSex"></div></div>
+      <div class="card"><h3>By Age Group</h3><div class="chart" id="chartAge"></div></div>
+      <div class="card"><h3>By Family Size</h3><div class="chart" id="chartFamily"></div></div>
+      <div class="card"><h3>By Fare Quartile</h3><div class="chart" id="chartFare"></div></div>
+      <div class="card"><h3>By Embarkation Port</h3><div class="chart" id="chartPort"></div></div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="footer">© Titanic Voyage — themed 3D dashboard</div>
   </div>
 
-  <div class="chart-container">
-    <h2>3D Pie Chart – Gender Distribution</h2>
-    <div id="pie3d" class="plot"></div>
-  </div>
+<script>
+/* ---------------------------
+   CSV location: must be placed
+   next to this HTML on GitHub Pages.
+   --------------------------- */
+const CSV_URL = 'train.csv';
 
-  <div class="chart-container">
-    <h2>3D Line Chart – Age vs Fare</h2>
-    <div id="line3d" class="plot"></div>
-  </div>
+/* Utilities */
+const pct = (x)=> Math.round(x*1000)/10;
+const mean = (xs)=> xs.length ? xs.reduce((a,b)=>a+(+b||0),0)/xs.length : 0;
+const qtl = (arr,q)=>{
+  const a = arr.filter(v=>!isNaN(v)).slice().sort((x,y)=>x-y);
+  if(!a.length) return NaN;
+  const p=(a.length-1)*q, b=Math.floor(p), r=p-b;
+  return a[b] + (a[b+1]-a[b])*(isNaN(r)?0:r||0);
+};
+const ageBand = (a)=>{
+  if(a===''||a==null||isNaN(+a)) return 'Unknown';
+  const x=+a; if(x<13) return 'Children (0-12)'; if(x<20) return 'Teens (13-19)'; if(x<60) return 'Adults (20-59)'; return 'Elderly (60+)';
+};
+const survRate = (rows)=> pct(mean(rows.map(r=>+r.Survived||0)));
 
-  <script>
-    // Example Titanic-like data
-    const pclass = [1, 2, 3];
-    const survived = [200, 120, 80];
+/* Load CSV */
+async function loadCSV(){
+  try{
+    const res = await fetch(CSV_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('CSV not found');
+    const text = await res.text();
+    return new Promise(resolve => Papa.parse(text, {header:true, dynamicTyping:true, complete: r => resolve(r.data)}));
+  } catch(err){
+    console.error('Failed to load CSV:', err);
+    alert('Failed to load train.csv — make sure train.csv is in the same folder as this HTML on GitHub Pages.');
+    return [];
+  }
+}
 
-    // 3D Bar
-    Plotly.newPlot("bar3d", [{
-      x: pclass,
-      y: survived,
-      z: [0,0,0],
-      type: "bar3d",
-    }], {
-      scene: {
-        xaxis: { title: "Pclass" },
-        yaxis: { title: "Survived" },
-        zaxis: { title: "Count" },
-        bgcolor: "#0d1117"
-      },
-      paper_bgcolor: "#161b22",
-      font: { color: "#ffffff" }
+/* Build mesh3d 'cuboids' for a list of bars (categories x values) */
+function buildCuboidMesh(labels, values, opts = {}){
+  const gap = opts.gap || 1.25;
+  const width = opts.width || 0.8;
+  const depth = opts.depth || 0.6;
+
+  const xs = [], ys = [], zs = [];
+  const I = [], J = [], K = [];
+  const intensity = [];
+
+  const triTemplate = [
+    [0,1,2], [0,2,3],        // bottom
+    [4,6,5], [4,7,6],        // top
+    [0,5,1], [0,4,5],        // front
+    [1,6,2], [1,5,6],        // right
+    [2,7,3], [2,6,7],        // back
+    [3,4,0], [3,7,4]         // left
+  ];
+
+  labels.forEach((lab, idx) => {
+    const cx = idx * gap;
+    const cy = 0;
+    const h = (values[idx] === undefined || values[idx] === null) ? 0 : values[idx];
+    const w = width, d = depth;
+    const verts = [
+      [cx - w/2, cy - d/2, 0],
+      [cx + w/2, cy - d/2, 0],
+      [cx + w/2, cy + d/2, 0],
+      [cx - w/2, cy + d/2, 0],
+      [cx - w/2, cy - d/2, h],
+      [cx + w/2, cy - d/2, h],
+      [cx + w/2, cy + d/2, h],
+      [cx - w/2, cy + d/2, h]
+    ];
+    const base = xs.length;
+    verts.forEach(v=>{
+      xs.push(v[0]); ys.push(v[1]); zs.push(v[2]);
+      intensity.push(h);
     });
-
-    // 3D Pie (workaround: Pie doesn’t have native 3D in Plotly → using Sunburst to fake 3D depth)
-    Plotly.newPlot("pie3d", [{
-      type: "sunburst",
-      labels: ["Male", "Female"],
-      parents: ["", ""],
-      values: [577, 314],
-      marker: { colors: ["#ff7f0e", "#1f77b4"] },
-      branchvalues: "total"
-    }], {
-      paper_bgcolor: "#161b22",
-      font: { color: "#ffffff" }
+    triTemplate.forEach(t=>{
+      I.push(base + t[0]);
+      J.push(base + t[1]);
+      K.push(base + t[2]);
     });
+  });
 
-    // 3D Line chart
-    const age = [5, 20, 30, 40, 50, 60, 70];
-    const fare = [10, 25, 50, 70, 90, 110, 150];
+  const tickvals = labels.map((_,i)=>i * (opts.gap || 1.25));
+  return {trace:{type:'mesh3d', x:xs, y:ys, z:zs, i:I, j:J, k:K, intensity:intensity, colorscale: opts.colorscale || 'Viridis', showscale:false, opacity:0.95, flatshading:true}, tickvals};
+}
 
-    Plotly.newPlot("line3d", [{
-      x: age,
-      y: fare,
-      z: age.map((a,i)=>i), // fake Z axis for 3D effect
-      mode: "lines+markers",
-      type: "scatter3d",
-      line: { color: "#58a6ff", width: 5 },
-      marker: { size: 6, color: "#f78166" }
-    }], {
-      scene: {
-        xaxis: { title: "Age" },
-        yaxis: { title: "Fare" },
-        zaxis: { title: "Index" },
-        bgcolor: "#0d1117"
-      },
-      paper_bgcolor: "#161b22",
-      font: { color: "#ffffff" }
+/* Plot helpers */
+function plot3DBars(domId, labels, values, title, opts = {}){
+  const {trace, tickvals} = buildCuboidMesh(labels, values, opts);
+  const layout = {
+    title: {text: title, x:0.02, xanchor:'left', font:{color:'#eaf6ff'}},
+    margin: {l:20,r:20,b:30,t:44},
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    scene: {
+      xaxis: {title: opts.xTitle || '', tickvals: tickvals, ticktext: labels, showbackground:false, color:'#dbe9ff'},
+      yaxis: {title:'', showbackground:false, visible:false},
+      zaxis: {title: opts.zTitle || '%', range:[0,100], color:'#dbe9ff'},
+      camera: {eye:{x:1.4,y:1.2,z:0.9}}
+    },
+    hovermode: 'closest',
+    font: {color:'#dbe9ff'}
+  };
+  Plotly.react(domId, [trace], layout, {responsive:true});
+}
+
+function plot3DLine(domId, xLabels, zValues, title){
+  const xVals = xLabels.map((_,i)=>i);
+  const trace = {
+    type:'scatter3d',
+    mode:'lines+markers',
+    x: xVals, y: new Array(xVals.length).fill(0), z: zValues,
+    line: {width:3, color:'#7EE7D7'},
+    marker: {size:6, color:zValues, colorscale:'Portland', colorbar:{title:'%'}}
+  };
+  const layout = {
+    title: {text: title, x:0.02, xanchor:'left', font:{color:'#eaf6ff'}},
+    margin: {l:20,r:20,b:30,t:44},
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    scene: {
+      xaxis: {title:'Category', tickvals: xVals, ticktext: xLabels, color:'#dbe9ff'},
+      yaxis: {visible:false},
+      zaxis: {title:'%', color:'#dbe9ff'},
+      camera: {eye:{x:1.4,y:1.2,z:0.9}}
+    },
+    font: {color:'#dbe9ff'}
+  };
+  Plotly.react(domId, [trace], layout, {responsive:true});
+}
+
+function plotPie(domId, labels, vals, title){
+  const trace = {type:'pie', labels:labels, values:vals, hole:0.32, textinfo:'label+percent', marker:{colors:['#7EE7D7','#8AA3FF','#FFB86B']}};
+  const layout = {title: {text: title, x:0.02, xanchor:'left', font:{color:'#eaf6ff'}}, paper_bgcolor:'rgba(0,0,0,0)', margin:{t:44}, font:{color:'#dbe9ff'}};
+  Plotly.react(domId, [trace], layout, {responsive:true});
+}
+
+/* Main render */
+document.addEventListener('DOMContentLoaded', async ()=>{
+  const raw = await loadCSV();
+  if(!raw.length) return;
+
+  const rows = raw.filter(r=>r && Object.keys(r).length).map(r=>{
+    r.FamilySize = (r.SibSp||0) + (r.Parch||0);
+    r.AgeBand = ageBand(r.Age);
+    r.Port = ({'C':'Cherbourg','Q':'Queenstown','S':'Southampton'})[r.Embarked] || 'Unknown';
+    return r;
+  });
+
+  // KPIs
+  const total = rows.length;
+  const survivors = rows.filter(r=>r.Survived==1).length;
+  const overall = pct(survivors / Math.max(1,total));
+  const males = rows.filter(r=>r.Sex==='male'), females = rows.filter(r=>r.Sex==='female');
+  const maleR = survRate(males), femaleR = survRate(females);
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statSurvivors').textContent = survivors;
+  document.getElementById('statRate').textContent = `${overall}%`;
+  document.getElementById('pillFemale').textContent = `${femaleR}%`;
+  document.getElementById('pillMale').textContent = `${maleR}%`;
+  document.getElementById('pillDeltaGender').textContent = `${(femaleR - maleR).toFixed(1)}%`;
+
+  const baseRateByClass = [1,2,3].map(c => survRate(rows.filter(r => r.Pclass === c)));
+  document.getElementById('pillDeltaClass').textContent = `${(baseRateByClass[0] - baseRateByClass[2]).toFixed(1)}%`;
+
+  // draw charts initially with all rows
+  function computeAndDraw(filterSex = 'all'){
+    const filtered = (filterSex === 'all') ? rows : rows.filter(r => r.Sex === filterSex);
+
+    // class (vibrant Turbo)
+    const pclassLabels = ['1st Class','2nd Class','3rd Class'];
+    const rateByClass = [1,2,3].map(c => survRate(filtered.filter(r => r.Pclass === c)));
+    plot3DBars('chartPclass', pclassLabels, rateByClass, 'Survival by Class (%)', {xTitle:'Class', zTitle:'%', colorscale:'Turbo', width:0.9, depth:0.7, gap:1.25});
+
+    // gender (distinct palette)
+    const gLabels = ['Female','Male'];
+    const gRates = [
+      survRate(filtered.filter(r => r.Sex === 'female')),
+      survRate(filtered.filter(r => r.Sex === 'male'))
+    ];
+    plot3DBars('chartSex', gLabels, gRates, 'Survival by Gender (%)', {colorscale:'RdBu', width:0.7, depth:0.6, gap:1.6});
+
+    // age groups (cool blues)
+    const ageLabels = ['Children (0-12)','Teens (13-19)','Adults (20-59)','Elderly (60+)'];
+    const ageRates = ageLabels.map(g => survRate(filtered.filter(r => r.AgeBand === g)));
+    plot3DBars('chartAge', ageLabels, ageRates, 'Survival by Age Group (%)', {colorscale:'Blues', width:0.9, depth:0.6, gap:1.1});
+
+    // family size (3D line)
+    const famLabels = ['0','1','2','3','4','5','6+'];
+    const famRates = famLabels.map(b => survRate(filtered.filter(r => (r.FamilySize >= 6 ? '6+' : String(r.FamilySize)) === b)));
+    plot3DLine('chartFamily', famLabels, famRates, 'Survival by Family Size (%)');
+
+    // fare quartiles (warm oranges)
+    const fares = rows.map(r => +r.Fare).filter(v => !isNaN(v));
+    const q25 = qtl(fares, .25), q50 = qtl(fares, .5), q75 = qtl(fares, .75);
+    filtered.forEach(r => {
+      const f = +r.Fare || 0;
+      r.FareBin = (f <= q25) ? 'Lowest 25%' : (f <= q50) ? '25–50%' : (f <= q75) ? '50–75%' : 'Top 25%';
     });
-  </script>
+    const fareLabels = ['Lowest 25%','25–50%','50–75%','Top 25%'];
+    const fareRates = fareLabels.map(b => survRate(filtered.filter(r => r.FareBin === b)));
+    plot3DBars('chartFare', fareLabels, fareRates, 'Survival by Fare Quartile (%)', {colorscale:'Oranges', gap:1.3});
+
+    // embarked (picnic palette)
+    const portLabels = ['Cherbourg','Queenstown','Southampton'];
+    const portRates = portLabels.map(p => survRate(filtered.filter(r => r.Port === p)));
+    // use mesh bars for consistent 3D look
+    plot3DBars('chartPort', portLabels, portRates, 'Survival by Embarkation Port (%)', {colorscale:'Picnic', gap:1.4, width:0.8, depth:0.6});
+  }
+
+  // initial draw (all)
+  computeAndDraw('all');
+
+  // control
+  const ctl = document.getElementById('ctlSex');
+  const ctlBadge = document.getElementById('ctlSexBadge');
+  ctl.addEventListener('change', (e)=>{
+    const v = e.target.value;
+    ctlBadge.textContent = `(${v[0].toUpperCase() + v.slice(1)})`;
+    computeAndDraw(v === 'all' ? 'all' : v);
+  });
+});
+</script>
 </body>
 </html>
