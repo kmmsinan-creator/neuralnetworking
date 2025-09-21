@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Titanic Survivors' Tales — EDA Dashboard</title>
 
-<!-- Client-side libs -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -14,7 +13,7 @@
 :root{
   --ink:#f5f5f5; 
   --muted:#d9d9d9;
-  --card:rgba(0,0,0,.55);
+  --card:rgba(0,0,0,.55);   
   --soft:rgba(0,0,0,.65);
   --shadow:0 14px 35px rgba(0,0,0,.5);
 }
@@ -23,61 +22,105 @@ body{
   min-height:100vh;
   color:var(--ink);
   padding:28px;
-  background:
-    linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+  background: 
+    linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
     url("https://upload.wikimedia.org/wikipedia/commons/f/fd/RMS_Titanic_3.jpg") no-repeat center center fixed;
   background-size: cover;
 }
 .container{max-width:1200px;margin:0 auto}
+
+.header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ffcc66,#ff9999);box-shadow:var(--shadow)}
+.title h1{font-size:clamp(1.6rem,2.4vw,2.1rem);line-height:1.1}
+.title p{color:var(--muted);margin-top:6px}
+
 .panel{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:var(--shadow);padding:18px}
 .grid{display:grid;gap:14px}
 .cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:900px){.cols-3,.cols-2{grid-template-columns:1fr}}
+
+.kpi{background:var(--soft);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:14px 16px}
+.kpi .label{color:var(--muted);font-size:.9rem}
+.kpi .value{font-size:1.7rem;font-weight:800;margin-top:6px;color:#ffcc66}
+
 .card{background:var(--soft);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
 .card h3{font-size:1.05rem;margin-bottom:8px}
 .chart{position:relative;height:270px}
-.section{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
-.section h2{font-size:1.2rem}
-hr.sep{border:none;height:1px;background:rgba(255,255,255,.2);margin:16px 0}
+
+.section{margin:22px 0 12px}
+.section h2{font-size:1.3rem}
+hr.sep{border:none;height:1px;background:rgba(255,255,255,.2);margin:20px 0}
+
 .footer{text-align:center;color:var(--muted);margin-top:22px;font-size:.9rem}
 </style>
 </head>
 <body>
   <div class="container">
-    <div class="panel">
-      <div class="section"><h2>Survival by Passenger Class</h2></div>
-      <div class="chart"><canvas id="survivalClass"></canvas></div>
+    <div class="header">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="title">
+          <h1>Titanic Survivors' Tales</h1>
+          <p>Exploratory Data Analysis Dashboard</p>
+        </div>
+      </div>
     </div>
 
-    <hr class="sep">
-
+    <!-- KPIs -->
     <div class="panel">
-      <div class="section"><h2>Survival by Embarkation Port</h2></div>
-      <div class="chart"><canvas id="survivalEmbark"></canvas></div>
+      <div class="grid cols-3">
+        <div class="kpi"><div class="label">Total Passengers</div><div class="value" id="total"></div></div>
+        <div class="kpi"><div class="label">Survival Rate</div><div class="value" id="survival"></div></div>
+        <div class="kpi"><div class="label">Average Age</div><div class="value" id="avgAge"></div></div>
+      </div>
     </div>
 
-    <hr class="sep">
-
-    <div class="panel">
-      <div class="section"><h2>Survival by Family Size</h2></div>
-      <div class="chart"><canvas id="survivalFamily"></canvas></div>
+    <!-- Demographics -->
+    <div class="section"><h2>Passenger Demographics</h2></div>
+    <div class="grid cols-3">
+      <div class="card"><h3>Gender Distribution</h3><div class="chart"><canvas id="genderChart"></canvas></div></div>
+      <div class="card"><h3>Passenger Class Distribution</h3><div class="chart"><canvas id="classChart"></canvas></div></div>
+      <div class="card"><h3>Age Groups</h3><div class="chart"><canvas id="ageChart"></canvas></div></div>
     </div>
 
-    <hr class="sep">
-
-    <div class="panel">
-      <div class="section"><h2>Survival by Fare Quartile</h2></div>
-      <div class="chart"><canvas id="survivalFare"></canvas></div>
+    <!-- Survival -->
+    <div class="section"><h2>Survival Analysis</h2></div>
+    <div class="grid cols-2">
+      <div class="card"><h3>Survival by Gender</h3><div class="chart"><canvas id="survivalGenderChart"></canvas></div></div>
+      <div class="card"><h3>Survival by Class</h3><div class="chart"><canvas id="survivalClassChart"></canvas></div></div>
     </div>
+
+    <div class="grid cols-3">
+      <div class="card"><h3>Survival by Embarkation Port</h3><div class="chart"><canvas id="embarkChart"></canvas></div></div>
+      <div class="card"><h3>Survival by Family Size</h3><div class="chart"><canvas id="familyChart"></canvas></div></div>
+      <div class="card"><h3>Survival by Fare Quartile</h3><div class="chart"><canvas id="fareChart"></canvas></div></div>
+    </div>
+
+    <hr class="sep" />
+    <div class="footer">© 2025 Titanic Survivors' Tales Dashboard</div>
   </div>
 
 <script>
 const CSV_URL = 'train.csv';
 
-// Utility helpers
+// Helpers
 const pct = (x)=>Math.round(x*1000)/10;
+const mean = (xs)=> xs.length ? xs.reduce((a,b)=>a+(+b||0),0)/xs.length : 0;
+const qtl = (arr, q)=>{
+  const a = arr.filter(v=>!isNaN(v)).slice().sort((x,y)=>x-y);
+  if(!a.length) return NaN;
+  const p = (a.length-1)*q, b = Math.floor(p), r = p-b;
+  return a[b] + (a[b+1]-a[b])*(isNaN(r)?0:r||0);
+};
+const ageBand = (a)=>{
+  if(a===''||a==null||isNaN(+a)) return 'Unknown';
+  const x=+a; if(x<13) return 'Children (0-12)'; if(x<20) return 'Teens (13-19)'; if(x<60) return 'Adults (20-59)'; return 'Elderly (60+)';
+};
 const famBucket = (x)=>{ const v=(+x)||0; return v>=6?'6+':String(v); };
+
+// Chart colors
 const chartColors = ['#ffcc66','#ff6666','#66b3ff','#99ff99','#ffb366','#d9b3ff','#66e0ff'];
 
 function drawChart(ctx, type, labels, data, title){
@@ -91,7 +134,7 @@ function drawChart(ctx, type, labels, data, title){
         borderWidth:2, 
         fill:type==='line'?false:true, 
         tension:0.2,
-        backgroundColor: chartColors,
+        backgroundColor: (type==='bar'||type==='pie'||type==='doughnut') ? chartColors : 'transparent',
         borderColor:'#fff'
       }]
     },
@@ -102,7 +145,7 @@ function drawChart(ctx, type, labels, data, title){
         title:{display:true,text:title,color:'#fff'} 
       },
       scales:(type==='pie'||type==='doughnut')?{}:{
-        y:{ beginAtZero:true, suggestedMax:100, ticks:{ callback:v=>v+'%', color:'#fff' } },
+        y:{ beginAtZero:true, ticks:{ color:'#fff' } },
         x:{ ticks:{ color:'#fff' } }
       }
     }
@@ -115,66 +158,96 @@ async function loadCSV(){
   return new Promise(resolve => Papa.parse(text, {header:true, dynamicTyping:true, complete:r=>resolve(r.data)}));
 }
 
-loadCSV().then(data => {
-  // Passenger Class
-  const classGroups = {};
-  data.forEach(p => {
-    const c = p.Pclass;
-    if(!classGroups[c]) classGroups[c] = {surv:0, total:0};
-    classGroups[c].total++;
-    if(p.Survived===1) classGroups[c].surv++;
-  });
-  const classLabels = Object.keys(classGroups).map(c=>"Class "+c);
-  const classRates = Object.keys(classGroups).map(c=>pct(classGroups[c].surv/classGroups[c].total));
-  drawChart(document.getElementById('survivalClass').getContext('2d'),'bar',classLabels,classRates,'Survival by Passenger Class');
+loadCSV().then(data=>{
+  const total = data.length;
+  const survived = data.filter(d=>d.Survived==1).length;
+  const avgAge = mean(data.map(d=>d.Age)).toFixed(1);
 
-  // Embarkation Port
-  const portNames = {'C':'Cherbourg','Q':'Queenstown','S':'Southampton'};
-  const portGroups = {};
-  data.forEach(p=>{
-    const port = portNames[p.Embarked]||'Unknown';
-    if(!portGroups[port]) portGroups[port]={surv:0,total:0};
-    portGroups[port].total++;
-    if(p.Survived===1) portGroups[port].surv++;
-  });
-  const portLabels = Object.keys(portGroups);
-  const portRates = portLabels.map(l=>pct(portGroups[l].surv/portGroups[l].total));
-  drawChart(document.getElementById('survivalEmbark').getContext('2d'),'bar',portLabels,portRates,'Survival by Embarkation Port');
+  document.getElementById("total").textContent = total;
+  document.getElementById("survival").textContent = pct(survived/total)+"%";
+  document.getElementById("avgAge").textContent = avgAge;
 
-  // Family Size
-  const famGroups = {};
-  data.forEach(p=>{
-    const famSize = (p.SibSp||0)+(p.Parch||0);
-    const bucket = famBucket(famSize);
-    if(!famGroups[bucket]) famGroups[bucket]={surv:0,total:0};
-    famGroups[bucket].total++;
-    if(p.Survived===1) famGroups[bucket].surv++;
-  });
-  const famLabels = Object.keys(famGroups);
-  const famRates = famLabels.map(l=>pct(famGroups[l].surv/famGroups[l].total));
-  drawChart(document.getElementById('survivalFamily').getContext('2d'),'bar',famLabels,famRates,'Survival by Family Size');
+  // Gender distribution
+  const genders = {};
+  data.forEach(d=>{genders[d.Sex]=(genders[d.Sex]||0)+1;});
+  drawChart(document.getElementById("genderChart"), "pie", Object.keys(genders), Object.values(genders), "Gender");
 
-  // Fare Quartile
-  const fares = data.map(p=>p.Fare).filter(f=>!isNaN(f)).sort((a,b)=>a-b);
-  const q1 = fares[Math.floor(fares.length*0.25)];
-  const q2 = fares[Math.floor(fares.length*0.50)];
-  const q3 = fares[Math.floor(fares.length*0.75)];
-  const quart = (fare)=>{
-    if(fare<=q1) return 'Q1 (Lowest)';
-    if(fare<=q2) return 'Q2';
-    if(fare<=q3) return 'Q3';
-    return 'Q4 (Highest)';
-  };
-  const fareGroups = {};
-  data.forEach(p=>{
-    const bucket = quart(p.Fare||0);
-    if(!fareGroups[bucket]) fareGroups[bucket]={surv:0,total:0};
-    fareGroups[bucket].total++;
-    if(p.Survived===1) fareGroups[bucket].surv++;
+  // Passenger class distribution
+  const classes = {};
+  data.forEach(d=>{classes[d.Pclass]=(classes[d.Pclass]||0)+1;});
+  drawChart(document.getElementById("classChart"), "bar", Object.keys(classes), Object.values(classes), "Passenger Count");
+
+  // Age groups
+  const ages = {};
+  data.forEach(d=>{const band=ageBand(d.Age); ages[band]=(ages[band]||0)+1;});
+  drawChart(document.getElementById("ageChart"), "bar", Object.keys(ages), Object.values(ages), "Age Groups");
+
+  // Survival by gender
+  const survGender={male:[0,0],female:[0,0]};
+  data.forEach(d=>{if(d.Survived!=='' && d.Sex){survGender[d.Sex][0]+=1; if(d.Survived==1) survGender[d.Sex][1]+=1;}});
+  drawChart(document.getElementById("survivalGenderChart"), "bar",
+    ["Male","Female"],
+    [pct(survGender.male[1]/survGender.male[0]), pct(survGender.female[1]/survGender.female[0])],
+    "Survival Rate %");
+
+  // Survival by class
+  const survClass={1:[0,0],2:[0,0],3:[0,0]};
+  data.forEach(d=>{if(d.Survived!=='' && d.Pclass){survClass[d.Pclass][0]+=1; if(d.Survived==1) survClass[d.Pclass][1]+=1;}});
+  drawChart(document.getElementById("survivalClassChart"), "bar",
+    Object.keys(survClass),
+    Object.values(survClass).map(v=>pct(v[1]/v[0])),
+    "Survival Rate %");
+
+  // Survival by Embarkation Port
+  const survEmbark = {};
+  data.forEach(d=>{
+    if(d.Embarked){ 
+      const e = d.Embarked;
+      if(!survEmbark[e]) survEmbark[e] = [0,0];
+      survEmbark[e][0] += 1;
+      if(d.Survived==1) survEmbark[e][1] += 1;
+    }
   });
-  const fareLabels = Object.keys(fareGroups);
-  const fareRates = fareLabels.map(l=>pct(fareGroups[l].surv/fareGroups[l].total));
-  drawChart(document.getElementById('survivalFare').getContext('2d'),'bar',fareLabels,fareRates,'Survival by Fare Quartile');
+  drawChart(document.getElementById("embarkChart"), "bar",
+    Object.keys(survEmbark),
+    Object.values(survEmbark).map(v=>pct(v[1]/v[0])),
+    "Survival Rate %");
+
+  // Survival by Family Size
+  const survFamily = {};
+  data.forEach(d=>{
+    const size = ((+d.SibSp||0)+(+d.Parch||0));
+    const bucket = famBucket(size);
+    if(!survFamily[bucket]) survFamily[bucket] = [0,0];
+    survFamily[bucket][0] += 1;
+    if(d.Survived==1) survFamily[bucket][1] += 1;
+  });
+  drawChart(document.getElementById("familyChart"), "bar",
+    Object.keys(survFamily),
+    Object.values(survFamily).map(v=>pct(v[1]/v[0])),
+    "Survival Rate %");
+
+  // Survival by Fare Quartile
+  const fares = data.map(d=>+d.Fare).filter(v=>!isNaN(v));
+  const q1=qtl(fares,0.25), q2=qtl(fares,0.5), q3=qtl(fares,0.75);
+  function fareBucket(f){
+    if(isNaN(f)) return "Unknown";
+    if(f<=q1) return "Q1 (Lowest)";
+    if(f<=q2) return "Q2";
+    if(f<=q3) return "Q3";
+    return "Q4 (Highest)";
+  }
+  const survFare={};
+  data.forEach(d=>{
+    const b = fareBucket(+d.Fare);
+    if(!survFare[b]) survFare[b]=[0,0];
+    survFare[b][0]+=1;
+    if(d.Survived==1) survFare[b][1]+=1;
+  });
+  drawChart(document.getElementById("fareChart"), "bar",
+    Object.keys(survFare),
+    Object.values(survFare).map(v=>pct(v[1]/v[0])),
+    "Survival Rate %");
 });
 </script>
 </body>
