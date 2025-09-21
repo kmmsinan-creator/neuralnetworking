@@ -1,170 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Titanic EDA Dashboard</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
-    h1 { text-align: center; }
-    .controls { text-align: center; margin: 20px; }
-    select { padding: 5px; margin: 5px; }
-    .chart { margin: 30px auto; max-width: 900px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Titanic Survivors' Tales — EDA Dashboard</title>
+
+<!-- Client-side libs -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+:root{
+  --ink:#f5f5f5; 
+  --muted:#d9d9d9;
+  --card:rgba(0,0,0,.55);
+  --soft:rgba(0,0,0,.65);
+  --shadow:0 14px 35px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{
+  min-height:100vh;
+  color:var(--ink);
+  padding:28px;
+  background:
+    linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+    url("https://upload.wikimedia.org/wikipedia/commons/f/fd/RMS_Titanic_3.jpg") no-repeat center center fixed;
+  background-size: cover;
+}
+.container{max-width:1200px;margin:0 auto}
+.panel{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:var(--shadow);padding:18px}
+.grid{display:grid;gap:14px}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:900px){.cols-3,.cols-2{grid-template-columns:1fr}}
+.card{background:var(--soft);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.card h3{font-size:1.05rem;margin-bottom:8px}
+.chart{position:relative;height:270px}
+.section{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
+.section h2{font-size:1.2rem}
+hr.sep{border:none;height:1px;background:rgba(255,255,255,.2);margin:16px 0}
+.footer{text-align:center;color:var(--muted);margin-top:22px;font-size:.9rem}
+</style>
 </head>
 <body>
-  <h1>Titanic EDA Dashboard</h1>
+  <div class="container">
+    <div class="panel">
+      <div class="section"><h2>Survival by Passenger Class</h2></div>
+      <div class="chart"><canvas id="survivalClass"></canvas></div>
+    </div>
 
-  <div class="controls">
-    <label>Sex: 
-      <select id="sexFilter">
-        <option value="all">All</option>
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-      </select>
-    </label>
+    <hr class="sep">
 
-    <label>Class: 
-      <select id="classFilter">
-        <option value="all">All</option>
-        <option value="1">1st</option>
-        <option value="2">2nd</option>
-        <option value="3">3rd</option>
-      </select>
-    </label>
+    <div class="panel">
+      <div class="section"><h2>Survival by Embarkation Port</h2></div>
+      <div class="chart"><canvas id="survivalEmbark"></canvas></div>
+    </div>
+
+    <hr class="sep">
+
+    <div class="panel">
+      <div class="section"><h2>Survival by Family Size</h2></div>
+      <div class="chart"><canvas id="survivalFamily"></canvas></div>
+    </div>
+
+    <hr class="sep">
+
+    <div class="panel">
+      <div class="section"><h2>Survival by Fare Quartile</h2></div>
+      <div class="chart"><canvas id="survivalFare"></canvas></div>
+    </div>
   </div>
 
-  <div id="sex" class="chart"></div>
-  <div id="pclass" class="chart"></div>
-  <div id="agegroup" class="chart"></div>
-  <div id="heatmap" class="chart"></div>
+<script>
+const CSV_URL = 'train.csv';
 
-  <script>
-    let rawData = [];
+// Utility helpers
+const pct = (x)=>Math.round(x*1000)/10;
+const famBucket = (x)=>{ const v=(+x)||0; return v>=6?'6+':String(v); };
+const chartColors = ['#ffcc66','#ff6666','#66b3ff','#99ff99','#ffb366','#d9b3ff','#66e0ff'];
 
-    // Helper to compute correlation between two arrays
-    function correlation(x, y) {
-      let n = x.length;
-      let meanX = x.reduce((a,b)=>a+b,0)/n;
-      let meanY = y.reduce((a,b)=>a+b,0)/n;
-      let num = 0, denX = 0, denY = 0;
-      for (let i=0; i<n; i++) {
-        let dx = x[i]-meanX;
-        let dy = y[i]-meanY;
-        num += dx*dy;
-        denX += dx*dx;
-        denY += dy*dy;
+function drawChart(ctx, type, labels, data, title){
+  return new Chart(ctx, {
+    type,
+    data: { 
+      labels, 
+      datasets: [{
+        label:title, 
+        data, 
+        borderWidth:2, 
+        fill:type==='line'?false:true, 
+        tension:0.2,
+        backgroundColor: chartColors,
+        borderColor:'#fff'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ 
+        legend:{labels:{color:'#fff'}}, 
+        title:{display:true,text:title,color:'#fff'} 
+      },
+      scales:(type==='pie'||type==='doughnut')?{}:{
+        y:{ beginAtZero:true, suggestedMax:100, ticks:{ callback:v=>v+'%', color:'#fff' } },
+        x:{ ticks:{ color:'#fff' } }
       }
-      return num / Math.sqrt(denX*denY);
     }
+  });
+}
 
-    function updateDashboard() {
-      let sexFilter = document.getElementById('sexFilter').value;
-      let classFilter = document.getElementById('classFilter').value;
+async function loadCSV(){
+  const res = await fetch(CSV_URL, {cache:'no-store'});
+  const text = await res.text();
+  return new Promise(resolve => Papa.parse(text, {header:true, dynamicTyping:true, complete:r=>resolve(r.data)}));
+}
 
-      let data = rawData.filter(d => {
-        if (sexFilter !== 'all' && d.Sex !== sexFilter) return false;
-        if (classFilter !== 'all' && d.Pclass != classFilter) return false;
-        return true;
-      });
+loadCSV().then(data => {
+  // Passenger Class
+  const classGroups = {};
+  data.forEach(p => {
+    const c = p.Pclass;
+    if(!classGroups[c]) classGroups[c] = {surv:0, total:0};
+    classGroups[c].total++;
+    if(p.Survived===1) classGroups[c].surv++;
+  });
+  const classLabels = Object.keys(classGroups).map(c=>"Class "+c);
+  const classRates = Object.keys(classGroups).map(c=>pct(classGroups[c].surv/classGroups[c].total));
+  drawChart(document.getElementById('survivalClass').getContext('2d'),'bar',classLabels,classRates,'Survival by Passenger Class');
 
-      // Helper: group survival rate
-      function survivalRate(filterFn) {
-        let subset = data.filter(filterFn);
-        let survived = subset.filter(d => d.Survived === 1).length;
-        return subset.length ? survived / subset.length : 0;
-      }
+  // Embarkation Port
+  const portNames = {'C':'Cherbourg','Q':'Queenstown','S':'Southampton'};
+  const portGroups = {};
+  data.forEach(p=>{
+    const port = portNames[p.Embarked]||'Unknown';
+    if(!portGroups[port]) portGroups[port]={surv:0,total:0};
+    portGroups[port].total++;
+    if(p.Survived===1) portGroups[port].surv++;
+  });
+  const portLabels = Object.keys(portGroups);
+  const portRates = portLabels.map(l=>pct(portGroups[l].surv/portGroups[l].total));
+  drawChart(document.getElementById('survivalEmbark').getContext('2d'),'bar',portLabels,portRates,'Survival by Embarkation Port');
 
-      // Survival by Sex
-      let sex_labels = ["Female", "Male"];
-      let sex_values = [
-        survivalRate(d => d.Sex === "female"),
-        survivalRate(d => d.Sex === "male")
-      ];
+  // Family Size
+  const famGroups = {};
+  data.forEach(p=>{
+    const famSize = (p.SibSp||0)+(p.Parch||0);
+    const bucket = famBucket(famSize);
+    if(!famGroups[bucket]) famGroups[bucket]={surv:0,total:0};
+    famGroups[bucket].total++;
+    if(p.Survived===1) famGroups[bucket].surv++;
+  });
+  const famLabels = Object.keys(famGroups);
+  const famRates = famLabels.map(l=>pct(famGroups[l].surv/famGroups[l].total));
+  drawChart(document.getElementById('survivalFamily').getContext('2d'),'bar',famLabels,famRates,'Survival by Family Size');
 
-      Plotly.newPlot('sex', [{
-        x: sex_labels,
-        y: sex_values,
-        type: 'bar',
-        marker: {color: ['orange','steelblue']}
-      }], {title: 'Survival Rate by Sex'});
-
-      // Survival by Pclass
-      let pclass_labels = ["1st","2nd","3rd"];
-      let pclass_values = [
-        survivalRate(d => d.Pclass === 1),
-        survivalRate(d => d.Pclass === 2),
-        survivalRate(d => d.Pclass === 3)
-      ];
-
-      Plotly.newPlot('pclass', [{
-        x: pclass_labels,
-        y: pclass_values,
-        type: 'bar',
-        marker: {color: 'green'}
-      }], {title: 'Survival Rate by Passenger Class'});
-
-      // Survival by Age Group
-      function ageGroup(age) {
-        if (!age) return null;
-        if (age <= 12) return "Child";
-        if (age <= 18) return "Teen";
-        if (age <= 30) return "Young Adult";
-        if (age <= 50) return "Adult";
-        return "Senior";
-      }
-
-      let groups = ["Child","Teen","Young Adult","Adult","Senior"];
-      let age_values = groups.map(g => survivalRate(d => ageGroup(d.Age) === g));
-
-      Plotly.newPlot('agegroup', [{
-        x: groups,
-        y: age_values,
-        type: 'bar',
-        marker: {color: 'purple'}
-      }], {title: 'Survival Rate by Age Group'});
-
-      // Correlation Heatmap
-      let features = ["Survived","Pclass","Age","SibSp","Parch","Fare"];
-      let matrix = [];
-
-      for (let i=0; i<features.length; i++) {
-        let row = [];
-        for (let j=0; j<features.length; j++) {
-          let xi = data.map(d => parseFloat(d[features[i]])).filter(v => !isNaN(v));
-          let yj = data.map(d => parseFloat(d[features[j]])).filter(v => !isNaN(v));
-          let minLen = Math.min(xi.length, yj.length);
-          xi = xi.slice(0,minLen);
-          yj = yj.slice(0,minLen);
-          row.push(correlation(xi,yj));
-        }
-        matrix.push(row);
-      }
-
-      Plotly.newPlot('heatmap', [{
-        z: matrix,
-        x: features,
-        y: features,
-        type: 'heatmap',
-        colorscale: 'RdBu'
-      }], {title: 'Correlation Heatmap'});
-    }
-
-    // Load CSV dynamically
-    Papa.parse("train.csv", {
-      download: true,
-      header: true,
-      dynamicTyping: true,
-      complete: function(results) {
-        rawData = results.data.filter(d => d.Survived !== undefined && d.Survived !== "");
-        updateDashboard();
-      }
-    });
-
-    // Add event listeners for filters
-    document.getElementById('sexFilter').addEventListener('change', updateDashboard);
-    document.getElementById('classFilter').addEventListener('change', updateDashboard);
-  </script>
+  // Fare Quartile
+  const fares = data.map(p=>p.Fare).filter(f=>!isNaN(f)).sort((a,b)=>a-b);
+  const q1 = fares[Math.floor(fares.length*0.25)];
+  const q2 = fares[Math.floor(fares.length*0.50)];
+  const q3 = fares[Math.floor(fares.length*0.75)];
+  const quart = (fare)=>{
+    if(fare<=q1) return 'Q1 (Lowest)';
+    if(fare<=q2) return 'Q2';
+    if(fare<=q3) return 'Q3';
+    return 'Q4 (Highest)';
+  };
+  const fareGroups = {};
+  data.forEach(p=>{
+    const bucket = quart(p.Fare||0);
+    if(!fareGroups[bucket]) fareGroups[bucket]={surv:0,total:0};
+    fareGroups[bucket].total++;
+    if(p.Survived===1) fareGroups[bucket].surv++;
+  });
+  const fareLabels = Object.keys(fareGroups);
+  const fareRates = fareLabels.map(l=>pct(fareGroups[l].surv/fareGroups[l].total));
+  drawChart(document.getElementById('survivalFare').getContext('2d'),'bar',fareLabels,fareRates,'Survival by Fare Quartile');
+});
+</script>
 </body>
 </html>
