@@ -1,182 +1,77 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Titanic — TFJS In-Browser Classifier</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #f6f8fb;
-      --card: #ffffff;
-      --accent: #2563eb;
-      --muted: #6b7280;
-      --radius: 10px;
-    }
-    html,body { height:100%; margin:0; font-family:Inter,system-ui,Arial; background:var(--bg); color:#111827; }
-    header { background: linear-gradient(90deg,#0ea5e9,#2563eb); color:white; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-    header h1 { margin:0; font-size:20px; }
-    header p { margin:6px 0 0 0; opacity:0.9; font-size:13px; }
-
-    .container { display:grid; grid-template-columns: 320px 1fr; gap:18px; padding:18px; max-width:1200px; margin:18px auto; }
-    .card { background:var(--card); border-radius:var(--radius); padding:14px; box-shadow:0 6px 18px rgba(16,24,40,0.04); }
-    .sidebar { display:flex; flex-direction:column; gap:12px; }
-
-    label { font-weight:600; font-size:13px; display:block; margin-bottom:6px; }
-    input[type=file] { width:100%; }
-    button { background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
-    button[disabled] { opacity:0.5; cursor:not-allowed; }
-    .row { display:flex; gap:8px; align-items:center; margin-top:8px; }
-    .small { font-size:13px; color:var(--muted); }
-    pre { background:#f3f4f6; padding:8px; border-radius:6px; max-height:220px; overflow:auto; }
-
-    .content { display:grid; grid-template-rows: auto auto; gap:12px; }
-    #charts { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
-    table { border-collapse:collapse; width:100%; font-size:13px; }
-    th,td { border:1px solid #eef2f7; padding:6px 8px; text-align:left; }
-    .controls-inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    input[type=number], input[type=range], select { padding:6px; border-radius:6px; border:1px solid #e6eef8; }
-    .muted { color:var(--muted); font-size:13px; }
-
-    footer { max-width:1200px; margin:0 auto 40px; padding:10px 18px; color:var(--muted); font-size:13px; text-align:center; }
-
-    @media (max-width: 900px) {
-      .container { grid-template-columns: 1fr; padding:12px; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>🚢 Titanic — TFJS In-Browser Binary Classifier</h1>
-    <p>Train & evaluate a small neural net on Kaggle Titanic in the browser. Export submission & model. Deploy via GitHub Pages (static).</p>
-  </header>
-
-  <main class="container">
-    <!-- Sidebar (controls) -->
-    <aside class="sidebar">
-      <div class="card">
-        <label>Data Load</label>
-        <div class="small">Upload Kaggle CSVs (train.csv, test.csv)</div>
-        <input id="trainFile" type="file" accept=".csv" />
-        <input id="testFile"  type="file" accept=".csv" />
-        <div class="row">
-          <button id="btnPreview" disabled>Preview</button>
-          <button id="btnInspect" disabled>Inspect</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Preprocessing</label>
-        <div class="small">Impute Age (median), Embarked (mode); standardize Age/Fare; one-hot encode categorical.</div>
-        <div style="margin-top:8px;">
-          <input id="optFamily" type="checkbox" checked /> <label style="display:inline-block; font-weight:500; margin-left:6px">Add FamilySize & IsAlone</label>
-        </div>
-        <div class="row">
-          <button id="btnPreprocess" disabled>Preprocess</button>
-          <button id="btnShowFeatures" disabled>Show Features</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Model</label>
-        <div class="small">Architecture: Dense(16, relu) → Dense(1, sigmoid). Compile: adam, binaryCrossentropy.</div>
-        <div class="row">
-          <button id="btnBuild" disabled>Build Model</button>
-          <button id="btnSummary" disabled>Summary</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Training</label>
-        <div class="controls-inline">
-          <div>
-            <div class="small">Epochs</div>
-            <input id="epochs" type="number" min="1" value="50" style="width:100px" />
-          </div>
-          <div>
-            <div class="small">Batch</div>
-            <input id="batchSize" type="number" min="1" value="32" style="width:100px" />
-          </div>
-        </div>
-        <div class="small" style="margin-top:8px">Stratified 80/20 train/val split, early stopping (patience=5)</div>
-        <div class="row">
-          <button id="btnTrain" disabled>Train</button>
-          <button id="btnStop" disabled>Stop</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Metrics</label>
-        <div class="small">ROC + AUC from validation. Tune threshold to update confusion matrix & PR/F1.</div>
-        <div style="margin-top:8px;">
-          <button id="btnEval" disabled>Evaluate (ROC/AUC)</button>
-        </div>
-        <div style="margin-top:8px;">
-          <input id="threshold" type="range" min="0" max="1" step="0.01" value="0.50" disabled />
-          <div class="small">Threshold: <span id="thVal">0.50</span></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <label>Prediction & Export</label>
-        <div class="row">
-          <button id="btnPredict" disabled>Predict Test</button>
-          <button id="btnExport" disabled>Export CSVs</button>
-        </div>
-        <div class="row" style="margin-top:8px;">
-          <button id="btnSaveModel" disabled>Download Model</button>
-        </div>
-      </div>
-
-      <div class="card small muted">
-        <strong>Deployment</strong>
-        <p style="margin:6px 0 0 0">Create a public GitHub repo, commit `index.html` + `app.js`, enable Pages on `main` (root). Open the published URL to run the static app.</p>
-      </div>
-    </aside>
-
-    <!-- Main content -->
-    <section class="content">
-      <div class="card" id="panelPreview">
-        <label>Preview & Inspect</label>
-        <div id="previewInfo" class="small muted">No data loaded.</div>
-        <div id="previewTable" style="margin-top:10px"></div>
-        <div id="inspectStats" style="margin-top:10px"></div>
-      </div>
-
-      <div class="card" id="panelCharts">
-        <label>Charts & Training</label>
-        <div id="charts" style="margin-top:8px">
-          <div id="barSex" style="min-height:180px"></div>
-          <div id="barPclass" style="min-height:180px"></div>
-        </div>
-        <div id="trainingVis" style="margin-top:12px"></div>
-      </div>
-
-      <div class="card" id="panelROC">
-        <label>ROC Curve & Confusion Matrix</label>
-        <div id="roc" style="min-height:220px; margin-top:8px"></div>
-        <div id="auc" class="small muted" style="margin-top:6px"></div>
-        <div id="confusion" style="margin-top:12px"></div>
-        <div id="prf" style="margin-top:8px" class="small"></div>
-      </div>
-
-      <div class="card" id="panelPredict">
-        <label>Prediction Preview</label>
-        <div id="predPreview" style="margin-top:8px"></div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div>Libraries used: TensorFlow.js, tfjs-vis, PapaParse. Running entirely in the browser — no server required.</div>
-  </footer>
-
-  <!-- External libs -->
+  <meta charset="UTF-8">
+  <title>Titanic Binary Classifier (TensorFlow.js)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.5; }
+    section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
+    h2 { margin-top: 0; }
+    button { margin: 5px; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    pre { background: #f9f9f9; padding: 10px; border-radius: 6px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🚢 Titanic Survival Prediction (TensorFlow.js)</h1>
 
-  <!-- App logic -->
-  <script src="app.js"></script>
+  <section>
+    <h2>Data Load</h2>
+    <input type="file" id="trainFile" accept=".csv"> Train.csv<br><br>
+    <input type="file" id="testFile" accept=".csv"> Test.csv
+    <pre id="previewInfo"></pre>
+    <button id="btnPreview" disabled>Preview</button>
+    <button id="btnInspect" disabled>Inspect Survival Rates</button>
+  </section>
+
+  <section>
+    <h2>Preprocessing</h2>
+    <pre id="featureInfo"></pre>
+    <button id="btnPreprocess" disabled>Preprocess</button>
+    <button id="btnShowFeatures" disabled>Show Features</button>
+  </section>
+
+  <section>
+    <h2>Model</h2>
+    <pre id="modelSummary"></pre>
+    <button id="btnBuild" disabled>Build Model</button>
+    <button id="btnSummary" disabled>Show Summary</button>
+  </section>
+
+  <section>
+    <h2>Training</h2>
+    <pre id="trainLog"></pre>
+    <button id="btnTrain" disabled>Train</button>
+    <button id="btnStop" disabled>Stop Training</button>
+  </section>
+
+  <section>
+    <h2>Metrics</h2>
+    <pre id="metricInfo"></pre>
+    <label>Threshold:
+      <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.5">
+      <span id="thresholdVal">0.5</span>
+    </label>
+    <button id="btnEval" disabled>Evaluate</button>
+  </section>
+
+  <section>
+    <h2>Prediction & Export</h2>
+    <pre id="predictionInfo"></pre>
+    <button id="btnPredict" disabled>Predict</button>
+    <button id="btnExport" disabled>Export CSV</button>
+    <button id="btnSaveModel" disabled>Save Model</button>
+  </section>
+
+  <section>
+    <h2>Deployment Notes</h2>
+    <p>Create a public GitHub repo, commit <code>index.html</code> and <code>app.js</code>, enable GitHub Pages (main branch, root), then share your URL.</p>
+  </section>
+
+  <script src="app.js" defer></script>
 </body>
 </html>
