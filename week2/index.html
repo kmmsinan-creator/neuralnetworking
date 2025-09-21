@@ -1,598 +1,100 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Titanic — TFJS Binary Classifier (single-file)</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 18px; color: #222; }
-    header { display:flex; gap:18px; align-items:center; }
-    h1 { margin: 0; font-weight:600; }
-    .grid { display:grid; grid-template-columns: 320px 1fr; gap:18px; align-items:start; }
-    .card { border:1px solid #ddd; border-radius:8px; padding:12px; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-    label { display:block; margin-top:8px; font-weight:600; }
-    input[type=file] { display:block; margin-top:8px; }
-    button { margin-top:10px; padding:8px 12px; border-radius:6px; border:1px solid #2b6cb0; background:#2b6cb0; color:#fff; cursor:pointer; }
-    pre { background:#f7f7f7; padding:8px; overflow:auto; max-height:200px; }
-    table { border-collapse:collapse; width:100%; margin-top:8px; }
-    th,td { border:1px solid #eee; padding:6px; text-align:left; font-size:13px; }
-    .row { display:flex; gap:12px; align-items:center; margin-top:8px; }
-    .muted { color:#666; font-size:13px; }
-    #charts { display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
-    footer { margin-top:18px; font-size:13px; color:#666; }
-    .small { font-size:13px; }
-    .inline { display:inline-block; margin-left:8px; }
-    .threshold { display:flex; align-items:center; gap:10px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Titanic Survival Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header>
-    <div>
-      <h1>Titanic — TFJS Binary Classifier</h1>
-      <div class="muted">Train in the browser with TensorFlow.js and visualise with tfjs-vis. Export submission.csv.</div>
-    </div>
+    <h1>🚢 Titanic Survival Predictor</h1>
+    <p>Train a neural network in your browser using TensorFlow.js</p>
   </header>
 
-  <section class="grid" style="margin-top:18px;">
-    <div>
+  <main class="grid-container">
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
       <div class="card">
-        <label>1) Upload CSV files</label>
-        <input id="trainFile" type="file" accept=".csv" />
-        <input id="testFile"  type="file" accept=".csv" />
-        <div class="muted small">If you don't upload, you can still fetch CSV by URL with the code modified — this is static-only.</div>
-
-        <label>2) Data Controls</label>
-        <div class="row">
-          <button id="previewBtn">Preview Data</button>
-          <button id="preprocessBtn">Preprocess</button>
-        </div>
-
-        <label>3) Model Controls</label>
-        <div class="row">
-          <button id="buildModelBtn">Build Model</button>
-          <button id="trainBtn">Train</button>
-          <button id="evalBtn">Evaluate</button>
-        </div>
-
-        <label>4) Prediction & Export</label>
-        <div class="row">
-          <button id="predictBtn">Predict on Test</button>
-          <button id="exportBtn">Export submission.csv</button>
-        </div>
-
-        <label>Threshold</label>
-        <div class="threshold">
-          <input id="thresholdSlider" type="range" min="0" max="1" step="0.01" value="0.5"/>
-          <div class="inline">Threshold: <span id="thresholdValue">0.50</span></div>
-        </div>
-
-        <label>Training options</label>
-        <div class="row">
-          <div>
-            <div>Epochs</div>
-            <input id="epochs" type="number" value="25" min="1" style="width:80px"/>
-          </div>
-          <div>
-            <div>Batch</div>
-            <input id="batchSize" type="number" value="32" min="1" style="width:80px"/>
-          </div>
-        </div>
-
+        <h2>1. Load Data</h2>
+        <input id="trainFile" type="file" accept=".csv">
+        <input id="testFile" type="file" accept=".csv">
+        <button id="previewBtn" disabled>Preview Data</button>
       </div>
 
-      <div class="card" style="margin-top:12px;">
-        <h3 style="margin:6px 0">Data Info</h3>
-        <div id="dataSummary" class="small muted">No data loaded.</div>
-        <pre id="modelSummary"></pre>
-      </div>
-
-      <div class="card" style="margin-top:12px;">
-        <h3 style="margin:6px 0">Logs</h3>
-        <pre id="logs" style="max-height:220px;"></pre>
-      </div>
-
-    </div>
-
-    <div>
       <div class="card">
-        <h3>Data — Preview & Stats</h3>
-        <div id="previewArea"></div>
-        <div style="margin-top:12px;">
-          <strong>Missing / Shape:</strong> <span id="shapeInfo">—</span>
-        </div>
-        <div style="margin-top:8px;">
-          <strong>Survival rates by Sex:</strong>
-          <div id="survivalBySex"></div>
-        </div>
-        <div style="margin-top:8px;">
-          <strong>Survival rates by Pclass:</strong>
-          <div id="survivalByPclass"></div>
+        <h2>2. Preprocess</h2>
+        <button id="preprocessBtn" disabled>Preprocess Data</button>
+      </div>
+
+      <div class="card">
+        <h2>3. Model</h2>
+        <button id="buildModelBtn" disabled>Build Model</button>
+      </div>
+
+      <div class="card">
+        <h2>4. Train</h2>
+        <label>Epochs <input id="epochs" type="number" value="25" min="1"></label>
+        <label>Batch Size <input id="batchSize" type="number" value="32" min="1"></label>
+        <button id="trainBtn" disabled>Train</button>
+      </div>
+
+      <div class="card">
+        <h2>5. Evaluate</h2>
+        <button id="evalBtn" disabled>Show Metrics</button>
+        <div>
+          <label>Threshold: <span id="thresholdValue">0.50</span></label>
+          <input id="thresholdSlider" type="range" min="0" max="1" step="0.01" value="0.5" disabled>
         </div>
       </div>
 
-      <div class="card" style="margin-top:12px;">
-        <h3>Training & Metrics</h3>
-        <div id="charts"></div>
-        <div style="display:flex; gap:16px; margin-top:10px;">
-          <div style="flex:1">
-            <h4>ROC Curve</h4>
-            <div id="rocPlot"></div>
-            <div class="muted">AUC: <span id="aucValue">—</span></div>
-          </div>
+      <div class="card">
+        <h2>6. Predict</h2>
+        <button id="predictBtn" disabled>Predict on Test</button>
+        <button id="exportBtn" disabled>Export CSV</button>
+      </div>
+    </aside>
 
-          <div style="flex:1">
-            <h4>Confusion Matrix</h4>
-            <div id="confMatrix"></div>
-            <div class="muted">Precision/Recall/F1 below:</div>
-            <pre id="precRecF1" class="small"></pre>
-          </div>
-        </div>
+    <!-- Main Content Area -->
+    <section class="content">
+      <div id="previewArea" class="card">
+        <h2>📊 Data Preview</h2>
+        <div id="dataPreview"></div>
       </div>
 
-      <div class="card" style="margin-top:12px;">
-        <h3>Prediction Preview</h3>
-        <div id="predPreview"></div>
+      <div id="chartsArea" class="card">
+        <h2>📈 Training Curves</h2>
+        <div id="visLoss"></div>
+        <div id="visAcc"></div>
       </div>
-    </div>
-  </section>
+
+      <div id="rocArea" class="card">
+        <h2>🧮 ROC & AUC</h2>
+        <canvas id="rocCanvas"></canvas>
+      </div>
+
+      <div id="confMatArea" class="card">
+        <h2>🔢 Confusion Matrix</h2>
+        <div id="confMatrix"></div>
+      </div>
+
+      <div id="predictionPreviewArea" class="card">
+        <h2>🔮 Prediction Preview</h2>
+        <div id="predictionPreview"></div>
+      </div>
+    </section>
+  </main>
 
   <footer>
-    <div>Libraries: TensorFlow.js, tfjs-vis, PapaParse. Model: Dense(16,'relu') -> Dense(1,'sigmoid'). Compile: adam, binaryCrossentropy.</div>
-    <div>Deploy: save this file to GitHub Pages (static) to share. Works entirely in the browser.</div>
+    <p>Built with ❤️ using TensorFlow.js, tfjs-vis & PapaParse</p>
   </footer>
 
-  <!-- Libraries -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.7.1/dist/tfjs-vis.umd.min.js"></script>
-
-  <script>
-  // Global state
-  let rawTrain = null;
-  let rawTest = null;
-  let processed = null; // {trainXs, trainYs, testXs, ids, featureNames, scalers}
-  let model = null;
-  const logsEl = document.getElementById('logs');
-  function log(...args){ console.log(...args); logsEl.textContent += args.join(' ') + '\\n'; logsEl.scrollTop = logsEl.scrollHeight; }
-
-  // Utility: parse CSV file input via PapaParse
-  function parseCsvFile(file) {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-        complete: (results) => resolve(results.data),
-        error: (err) => reject(err)
-      });
-    });
-  }
-
-  // Get file input files
-  document.getElementById('trainFile').addEventListener('change', async (ev) => {
-    const f = ev.target.files[0];
-    if (!f) return;
-    rawTrain = await parseCsvFile(f);
-    document.getElementById('dataSummary').textContent = 'Loaded train.csv — ' + rawTrain.length + ' rows';
-    log('Loaded train rows:', rawTrain.length);
-  });
-
-  document.getElementById('testFile').addEventListener('change', async (ev) => {
-    const f = ev.target.files[0];
-    if (!f) return;
-    rawTest = await parseCsvFile(f);
-    document.getElementById('dataSummary').textContent = 'Loaded test.csv — ' + rawTest.length + ' rows';
-    log('Loaded test rows:', rawTest.length);
-  });
-
-  // Preview data head, missing percentages, survival rates by Sex & Pclass
-  document.getElementById('previewBtn').addEventListener('click', () => {
-    if (!rawTrain) { alert('Please upload train.csv'); return; }
-    renderPreview(rawTrain, 'previewArea', 10);
-    renderShapeAndMissing(rawTrain);
-    computeSurvivalRates(rawTrain);
-  });
-
-  function renderPreview(data, containerId, n=10) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    const rows = data.slice(0,n);
-    if (rows.length === 0) { container.innerHTML = '<em>No rows</em>'; return; }
-    const table = document.createElement('table');
-    const header = document.createElement('tr');
-    Object.keys(rows[0]).forEach(k => { const th = document.createElement('th'); th.textContent = k; header.appendChild(th); });
-    table.appendChild(header);
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      Object.keys(rows[0]).forEach(k => {
-        const td = document.createElement('td');
-        td.textContent = (r[k] === null || r[k] === undefined) ? '' : r[k];
-        tr.appendChild(td);
-      });
-      table.appendChild(tr);
-    });
-    container.appendChild(table);
-  }
-
-  function renderShapeAndMissing(data) {
-    const n = data.length;
-    const cols = Object.keys(data[0] || {});
-    const missing = {};
-    cols.forEach(c => missing[c] = 0);
-    data.forEach(row => {
-      cols.forEach(c => {
-        if (row[c] === null || row[c] === undefined || row[c] === '') missing[c]++;
-      });
-    });
-    const info = cols.map(c => `${c}: ${missing[c]} missing (${(missing[c]/n*100).toFixed(2)}%)`).join('\\n');
-    document.getElementById('shapeInfo').textContent = `${n} rows x ${cols.length} cols\\n${info}`;
-  }
-
-  function computeSurvivalRates(data) {
-    // Sex survival rate
-    const bySex = {};
-    data.forEach(r => {
-      const s = (r['Sex'] || '').toString();
-      const survived = Number(r['Survived']) === 1;
-      if (!bySex[s]) bySex[s] = {count:0, surv:0};
-      bySex[s].count++; if (survived) bySex[s].surv++;
-    });
-    const sexHtml = Object.keys(bySex).map(s => `${s}: ${(bySex[s].surv/bySex[s].count*100).toFixed(1)}% (${bySex[s].surv}/${bySex[s].count})`).join('<br/>');
-    document.getElementById('survivalBySex').innerHTML = sexHtml;
-
-    // Pclass survival rate
-    const byP = {};
-    data.forEach(r => {
-      const p = r['Pclass'];
-      const survived = Number(r['Survived']) === 1;
-      if (!byP[p]) byP[p] = {count:0, surv:0};
-      byP[p].count++; if (survived) byP[p].surv++;
-    });
-    const pHtml = Object.keys(byP).sort().map(p => `Class ${p}: ${(byP[p].surv/byP[p].count*100).toFixed(1)}% (${byP[p].surv}/${byP[p].count})`).join('<br/>');
-    document.getElementById('survivalByPclass').innerHTML = pHtml;
-
-    // quick bar charts using tfjs-vis
-    const sexData = Object.keys(bySex).map(k=> ({label:k, value: bySex[k].surv/bySex[k].count}));
-    tfvis.render.barchart({name:'Survival rate by Sex'}, {values: sexData}, {width:300, height:200});
-
-    const pData = Object.keys(byP).map(k=> ({label:'P'+k, value: byP[k].surv/byP[k].count}));
-    tfvis.render.barchart({name:'Survival rate by Pclass'}, {values: pData}, {width:300, height:200});
-  }
-
-  // Preprocessing function
-  document.getElementById('preprocessBtn').addEventListener('click', () => {
-    if (!rawTrain) { alert('Upload train.csv first'); return; }
-    processed = preprocessData(rawTrain, rawTest);
-    document.getElementById('dataSummary').textContent = 'Preprocessed. Feature names: ' + processed.featureNames.join(', ');
-    document.getElementById('predPreview').innerHTML = `<div>trainXs: ${processed.trainXs.shape}, trainYs: ${processed.trainYs.shape}${processed.testXs ? ', testXs: ' + processed.testXs.shape : ''}</div>`;
-    log('Preprocessing done. Feature names:', processed.featureNames);
-  });
-
-  function preprocessData(trainRows, testRows=null) {
-    // Steps:
-    // - compute median Age from train, mode Embarked from train
-    // - features: Pclass, Sex, Age, SibSp, Parch, Fare, Embarked
-    // - optional: FamilySize = SibSp + Parch + 1, IsAlone
-    // - standardize Age and Fare using train mean/std
-    // - one-hot encode Sex (male/female), Pclass (1/2/3), Embarked (C/Q/S)
-    const copyTrain = trainRows.map(r => ({...r}));
-    const copyTest = testRows ? testRows.map(r => ({...r})) : null;
-
-    // helper to coerce values
-    const toNum = v => (v===null || v===undefined || v==='') ? NaN : Number(v);
-
-    // Age median from train
-    const ages = copyTrain.map(r=> toNum(r['Age'])).filter(v=> !isNaN(v));
-    const medianAge = median(ages);
-    // Fare median (some missing in test)
-    const fares = copyTrain.map(r=> toNum(r['Fare'])).filter(v=> !isNaN(v));
-    const medianFare = median(fares);
-    // Embarked mode
-    const embarkedVals = copyTrain.map(r=> (r['Embarked'] || '').toString()).filter(s=> s !== '');
-    const modeEmb = mode(embarkedVals) || 'S';
-
-    // Fill missing, coerce and create features array
-    function rowToFeatures(r, forTrain=true) {
-      const Pclass = Number(r['Pclass'] || 3);
-      const Sex = (r['Sex'] || 'male').toString().toLowerCase();
-      let Age = toNum(r['Age']);
-      if (isNaN(Age)) Age = medianAge;
-      const SibSp = toNum(r['SibSp']) || 0;
-      const Parch = toNum(r['Parch']) || 0;
-      let Fare = toNum(r['Fare']);
-      if (isNaN(Fare)) Fare = medianFare;
-      let Embarked = (r['Embarked'] || modeEmb).toString();
-      if (Embarked === '') Embarked = modeEmb;
-
-      const FamilySize = SibSp + Parch + 1;
-      const IsAlone = FamilySize === 1 ? 1 : 0;
-
-      return {Pclass, Sex, Age, SibSp, Parch, Fare, Embarked, FamilySize, IsAlone};
-    }
-
-    const trainProcessed = copyTrain.map(r => ({...rowToFeatures(r, true), Survived: Number(r['Survived'] || 0), PassengerId: r['PassengerId']}));
-    const testProcessed = copyTest ? copyTest.map(r => ({...rowToFeatures(r, false), PassengerId: r['PassengerId']})) : null;
-
-    // Standardize Age and Fare using train mean/std
-    const agesAll = trainProcessed.map(r=> r.Age);
-    const faresAll = trainProcessed.map(r=> r.Fare);
-    const ageMean = mean(agesAll), ageStd = std(agesAll);
-    const fareMean = mean(faresAll), fareStd = std(faresAll);
-    function standardize(val, meanV, stdV) { return stdV === 0 ? 0 : (val - meanV) / stdV; }
-
-    // Determine unique categories for one-hot encoding
-    const sexCats = Array.from(new Set(trainProcessed.map(r=> r.Sex))).sort();
-    const pclassCats = Array.from(new Set(trainProcessed.map(r=> r.Pclass))).sort();
-    const embarkedCats = Array.from(new Set(trainProcessed.map(r=> r.Embarked))).sort();
-
-    // Assemble final feature vector order:
-    // [Age_std, Fare_std, SibSp, Parch, FamilySize, IsAlone, Sex_onehot..., Pclass_onehot..., Embarked_onehot...]
-    const featureNames = [];
-    featureNames.push('Age_std','Fare_std','SibSp','Parch','FamilySize','IsAlone');
-    sexCats.forEach(s=> featureNames.push('Sex_'+s));
-    pclassCats.forEach(p=> featureNames.push('Pclass_'+p));
-    embarkedCats.forEach(e=> featureNames.push('Embarked_'+e));
-
-    function makeFeatureArray(rowObj) {
-      const arr = [];
-      arr.push(standardize(rowObj.Age, ageMean, ageStd));
-      arr.push(standardize(rowObj.Fare, fareMean, fareStd));
-      arr.push(rowObj.SibSp);
-      arr.push(rowObj.Parch);
-      arr.push(rowObj.FamilySize);
-      arr.push(rowObj.IsAlone ? 1 : 0);
-      sexCats.forEach(s => arr.push(rowObj.Sex === s ? 1 : 0));
-      pclassCats.forEach(p => arr.push(rowObj.Pclass === p ? 1 : 0));
-      embarkedCats.forEach(e => arr.push(rowObj.Embarked === e ? 1 : 0));
-      return arr;
-    }
-
-    const trainXsArr = trainProcessed.map(r => makeFeatureArray(r));
-    const trainYsArr = trainProcessed.map(r => [Number(r.Survived)]);
-    const testXsArr = testProcessed ? testProcessed.map(r => makeFeatureArray(r)) : null;
-    const ids = testProcessed ? testProcessed.map(r => r.PassengerId) : null;
-
-    const trainXs = tf.tensor2d(trainXsArr);
-    const trainYs = tf.tensor2d(trainYsArr);
-    const testXs = testXsArr ? tf.tensor2d(testXsArr) : null;
-
-    return {
-      trainXs, trainYs, testXs,
-      ids,
-      featureNames,
-      scalers: {ageMean, ageStd, fareMean, fareStd},
-      categories: {sexCats, pclassCats, embarkedCats}
-    };
-  }
-
-  // Stats helpers
-  function median(arr) {
-    const a = arr.slice().sort((x,y)=>x-y);
-    if (a.length === 0) return NaN;
-    const mid = Math.floor(a.length/2);
-    return a.length % 2 ? a[mid] : (a[mid-1]+a[mid])/2;
-  }
-  function mean(arr) { return arr.reduce((s,v)=> s + v, 0) / arr.length; }
-  function std(arr) {
-    const m = mean(arr);
-    return Math.sqrt(arr.reduce((s,v)=> s + (v-m)*(v-m), 0) / arr.length);
-  }
-  function mode(arr) {
-    const counts = {};
-    arr.forEach(x => counts[x] = (counts[x] || 0) + 1);
-    let best = null, bestC = -1;
-    Object.keys(counts).forEach(k => { if (counts[k] > bestC) { best = k; bestC = counts[k]; }});
-    return best;
-  }
-
-  // Build model
-  document.getElementById('buildModelBtn').addEventListener('click', () => {
-    if (!processed) { alert('Preprocess data first'); return; }
-    const inputDim = processed.trainXs.shape[1];
-    model = tf.sequential();
-    model.add(tf.layers.dense({units:16, activation:'relu', inputShape: [inputDim]}));
-    model.add(tf.layers.dense({units:1, activation:'sigmoid'}));
-    model.compile({optimizer: tf.train.adam(), loss: 'binaryCrossentropy', metrics: ['accuracy']});
-    const summaryEl = document.getElementById('modelSummary');
-    summaryEl.textContent = 'Model created. Summary below:\\n';
-    model.summary(null, null, (line)=> { summaryEl.textContent += line + '\\n'; });
-    log('Model built. Input dim:', inputDim);
-  });
-
-  // Train model — use tfjs-vis fit callbacks for live curves
-  document.getElementById('trainBtn').addEventListener('click', async () => {
-    if (!model) { alert('Build model first'); return; }
-    if (!processed) { alert('Preprocess first'); return; }
-    const epochs = Number(document.getElementById('epochs').value) || 20;
-    const batchSize = Number(document.getElementById('batchSize').value) || 32;
-
-    const metricsContainer = {name: 'Training: Loss & Acc', tab: 'Training'};
-    const fitCallbacks = tfvis.show.fitCallbacks(metricsContainer, ['loss','acc'], {height:200, callbacks: ['onEpochEnd']});
-
-    await model.fit(processed.trainXs, processed.trainYs, {
-      batchSize, epochs,
-      shuffle: true,
-      validationSplit: 0.15,
-      callbacks: {
-        onEpochEnd: async (epoch, logs) => {
-          await fitCallbacks.onEpochEnd(epoch, logs);
-          log('Epoch', epoch+1, 'loss', logs.loss.toFixed(4), 'val_loss', (logs.val_loss||0).toFixed(4));
-        }
-      }
-    });
-
-    log('Training complete');
-    // After training, run evaluation metrics on training set for visualization
-    await evaluateAndPlotROC(processed.trainXs, processed.trainYs);
-  });
-
-  // Evaluate (compute ROC/AUC and confusion matrix at chosen threshold)
-  document.getElementById('evalBtn').addEventListener('click', async () => {
-    if (!model || !processed) { alert('Build and preprocess first'); return; }
-    await evaluateAndPlotROC(processed.trainXs, processed.trainYs);
-  });
-
-  async function evaluateAndPlotROC(xs, ys) {
-    // Predict probabilities
-    const probsTensor = model.predict(xs);
-    const probs = Array.from(await probsTensor.data());
-    const labels = Array.from(await ys.data());
-    probsTensor.dispose();
-
-    // Compute ROC curve points and AUC
-    const roc = computeROC(labels, probs);
-    // Draw ROC with tfjs-vis scatterplot
-    const series = roc.points.map(p => ({x: p.fpr, y: p.tpr}));
-    tfvis.render.scatterplot({name: 'ROC Curve', tab: 'Evaluation'}, {values: series}, {xLabel: 'FPR', yLabel: 'TPR', height:250});
-    document.getElementById('aucValue').textContent = roc.auc.toFixed(4);
-
-    // Update confusion matrix at current threshold
-    updateConfusionMatrix(labels, probs, Number(document.getElementById('thresholdSlider').value));
-  }
-
-  // Compute ROC and AUC (simple implementation)
-  function computeROC(labels, scores) {
-    // labels: array of 0/1; scores: predicted probability for positive class
-    const paired = labels.map((lab,i) => ({lab, score: scores[i]}));
-    paired.sort((a,b) => b.score - a.score); // descending
-    const P = labels.reduce((s,v)=> s + (v===1?1:0), 0);
-    const N = labels.length - P;
-    let tp = 0, fp = 0;
-    const points = [];
-    let prevScore = Number.POSITIVE_INFINITY;
-    // iterate thresholds at each unique score
-    for (let i=0;i<paired.length;i++){
-      const p = paired[i];
-      if (p.score !== prevScore) {
-        points.push({fpr: N===0?0:fp/N, tpr: P===0?0:tp/P});
-        prevScore = p.score;
-      }
-      if (p.lab === 1) tp++; else fp++;
-    }
-    // final point
-    points.push({fpr: N===0?0:fp/N, tpr: P===0?0:tp/P});
-    // compute AUC via trapezoidal rule
-    let auc=0;
-    for (let i=1;i<points.length;i++){
-      const x1 = points[i-1].fpr, x2 = points[i].fpr;
-      const y1 = points[i-1].tpr, y2 = points[i].tpr;
-      auc += (x2 - x1) * (y1 + y2) / 2;
-    }
-    // area computed over fpr axis, but we want area under curve (TPR vs FPR)
-    auc = Math.abs(auc);
-    return {points, auc};
-  }
-
-  // Confusion matrix and precision/recall/f1
-  function updateConfusionMatrix(labels, probs, threshold=0.5) {
-    const preds = probs.map(p => p >= threshold ? 1 : 0);
-    let tp=0, tn=0, fp=0, fn=0;
-    for (let i=0;i<labels.length;i++){
-      if (labels[i] === 1 && preds[i] === 1) tp++;
-      if (labels[i] === 0 && preds[i] === 0) tn++;
-      if (labels[i] === 0 && preds[i] === 1) fp++;
-      if (labels[i] === 1 && preds[i] === 0) fn++;
-    }
-    const cmDiv = document.getElementById('confMatrix');
-    cmDiv.innerHTML = `<table><tr><th></th><th>Pred Pos</th><th>Pred Neg</th></tr>
-      <tr><th>Actual Pos</th><td>${tp}</td><td>${fn}</td></tr>
-      <tr><th>Actual Neg</th><td>${fp}</td><td>${tn}</td></tr></table>`;
-
-    const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
-    const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
-    const f1 = (precision + recall) === 0 ? 0 : 2 * precision * recall / (precision + recall);
-    document.getElementById('precRecF1').textContent = `Precision: ${precision.toFixed(4)}\\nRecall: ${recall.toFixed(4)}\\nF1: ${f1.toFixed(4)}`;
-  }
-
-  // Connect threshold slider
-  document.getElementById('thresholdSlider').addEventListener('input', async (ev) => {
-    const val = Number(ev.target.value);
-    document.getElementById('thresholdValue').textContent = val.toFixed(2);
-    // If we have predictions already on train set, update confusion matrix
-    if (model && processed) {
-      // reuse previous evaluation: predict on trainXs
-      const probsTensor = model.predict(processed.trainXs);
-      const probs = Array.from(await probsTensor.data());
-      const labels = Array.from(await processed.trainYs.data());
-      probsTensor.dispose();
-      updateConfusionMatrix(labels, probs, val);
-      // also update preview predictions table (first 8)
-      renderPredictionPreview(probs, labelArr=labels);
-    }
-  });
-
-  // Predict on test set and show sample + prepare for export
-  let lastTestPredictions = null;
-  document.getElementById('predictBtn').addEventListener('click', async () => {
-    if (!processed || !model) { alert('Preprocess and build model first'); return; }
-    if (!processed.testXs) { alert('No test.csv uploaded'); return; }
-    const probsTensor = model.predict(processed.testXs);
-    const probs = Array.from(await probsTensor.data());
-    probsTensor.dispose();
-    lastTestPredictions = probs;
-    renderPredictionPreview(probs, null, processed.ids);
-    log('Predictions on test set computed:', probs.length);
-  });
-
-  function renderPredictionPreview(probs, labelArr=null, ids=null) {
-    const container = document.getElementById('predPreview');
-    container.innerHTML = '';
-    const n = Math.min(probs.length, 12);
-    const table = document.createElement('table');
-    const header = document.createElement('tr');
-    header.innerHTML = `<th>${ids ? 'PassengerId' : '#'} </th><th>Prob(Survived)</th><th>Pred (thr)</th>${labelArr ? '<th>Actual</th>' : ''}`;
-    table.appendChild(header);
-    const thr = Number(document.getElementById('thresholdSlider').value);
-    for (let i=0;i<n;i++){
-      const tr = document.createElement('tr');
-      const idCell = document.createElement('td');
-      idCell.textContent = ids ? ids[i] : (i+1);
-      const pCell = document.createElement('td');
-      pCell.textContent = probs[i].toFixed(4);
-      const predCell = document.createElement('td');
-      predCell.textContent = probs[i] >= thr ? '1' : '0';
-      tr.appendChild(idCell); tr.appendChild(pCell); tr.appendChild(predCell);
-      if (labelArr) { const act = document.createElement('td'); act.textContent = labelArr[i]; tr.appendChild(act); }
-      table.appendChild(tr);
-    }
-    container.appendChild(table);
-  }
-
-  // Export submission.csv
-  document.getElementById('exportBtn').addEventListener('click', () => {
-    if (!lastTestPredictions || !processed || !processed.ids) { alert('You need to run Predict on Test first'); return; }
-    const threshold = Number(document.getElementById('thresholdSlider').value);
-    const lines = [['PassengerId','Survived']];
-    for (let i=0;i<processed.ids.length;i++){
-      const pid = processed.ids[i];
-      const pred = lastTestPredictions[i] >= threshold ? 1 : 0;
-      lines.push([pid, pred]);
-    }
-    const csvContent = lines.map(r => r.join(',')).join('\\n');
-    const blob = new Blob([csvContent], {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'submission.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    log('Exported submission.csv with', processed.ids.length, 'rows');
-  });
-
-  // Evaluate on train set helper (used earlier)
-  async function updateConfusionMatrixForTrain() {
-    if (!model || !processed) return;
-    const probsTensor = model.predict(processed.trainXs);
-    const probs = Array.from(await probsTensor.data());
-    const labels = Array.from(await processed.trainYs.data());
-    probsTensor.dispose();
-    updateConfusionMatrix(labels, probs, Number(document.getElementById('thresholdSlider').value));
-    renderPredictionPreview(probs, labels);
-  }
-
-  // Add initial log
-  log('Interface ready. Upload train.csv and test.csv to begin.');
-
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
