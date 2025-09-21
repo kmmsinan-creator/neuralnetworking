@@ -1,0 +1,88 @@
+/* Global styles */
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  background: #f9fafb;
+  color: #1f2937;
+}
+
+header {
+  background: #2563eb;
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  color: #111827;
+}
+
+button {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+input[type="file"] {
+  margin: 0.5rem 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+footer {
+  text-align: center;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: #f3f4f6;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+@media (max-width: 800px) {
+  .grid-container {
+    grid-template-columns: 1fr;
+  }
+}
