@@ -1,277 +1,185 @@
-// app.js - Titanic Binary Classifier in TensorFlow.js
+// app.js - Titanic Survival Classifier
+// Uses TensorFlow.js + tfjs-vis, runs entirely in the browser
 
-const $ = id => document.getElementById(id);
-function setDisabled(id, state) {
-  const el = $(id);
-  if (el) el.disabled = state;
-}
-
-// Globals
-let rawTrain = null, rawTest = null;
+// --- Globals ---
 let trainData = [], testData = [];
+let xTrain, yTrain, xVal, yVal, testX;
 let featureNames = [];
-let trainXs, trainYs, valXs, valYs, testXs;
-let model, stopTrainingFlag = false;
-let valPredProbs = null;
+let model;
+let stopTraining = false;
 
-// ------------------------------
-// CSV Loading
-// ------------------------------
-function parseFileInput(fileInput) {
+// --- Helpers ---
+const $ = id => document.getElementById(id);
+const setDisabled = (id, state) => { $(id).disabled = state; };
+
+// --- CSV Loading ---
+$('load-data-btn').addEventListener('click', async () => {
+  try {
+    trainData = await loadCSV($('trainFile'));
+    testData = await loadCSV($('testFile'));
+    $('data-status').textContent = `Train: ${trainData.length} rows, Test: ${testData.length} rows`;
+    setDisabled('inspect-btn', false);
+  } catch (err) {
+    alert("Error loading CSV: " + err);
+  }
+});
+
+function loadCSV(input) {
   return new Promise((resolve, reject) => {
-    const file = fileInput.files[0];
-    if (!file) return reject("No file selected");
-    Papa.parse(file, {
+    if (!input.files[0]) return reject("No file chosen");
+    Papa.parse(input.files[0], {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
-      complete: results => resolve(results.data),
+      complete: res => resolve(res.data),
       error: err => reject(err)
     });
   });
 }
 
-$('trainFile').addEventListener('change', async () => {
-  try {
-    rawTrain = await parseFileInput($('trainFile'));
-    $('previewInfo').textContent = `Loaded train.csv — ${rawTrain.length} rows.`;
-    setDisabled('btnPreview', false);
-    setDisabled('btnInspect', false);
-  } catch (err) {
-    alert("Error loading train.csv: " + err);
-  }
-});
+// --- Inspect ---
+$('inspect-btn').addEventListener('click', () => {
+  const preview = trainData.slice(0, 5);
+  $('data-preview').textContent = JSON.stringify(preview, null, 2);
 
-$('testFile').addEventListener('change', async () => {
-  try {
-    rawTest = await parseFileInput($('testFile'));
-    $('previewInfo').textContent += `\nLoaded test.csv — ${rawTest.length} rows.`;
-  } catch (err) {
-    alert("Error loading test.csv: " + err);
-  }
-});
+  const cols = Object.keys(trainData[0]);
+  const missing = cols.map(c => ({
+    col: c,
+    missing: trainData.filter(r => r[c] === null || r[c] === "").length
+  }));
+  $('data-stats').textContent = JSON.stringify(missing, null, 2);
 
-// ------------------------------
-// Preview
-// ------------------------------
-$('btnPreview').addEventListener('click', () => {
-  if (!rawTrain) return alert("Load train.csv first.");
-  $('previewInfo').textContent = JSON.stringify(rawTrain.slice(0, 5), null, 2);
-  setDisabled('btnPreprocess', false);
-});
-
-// Inspect survival by Sex & Pclass
-$('btnInspect').addEventListener('click', () => {
-  if (!rawTrain) return;
-  const survivalBySex = {};
-  rawTrain.forEach(r => {
-    if (!r.Survived) return;
-    const s = r.Sex;
-    if (!survivalBySex[s]) survivalBySex[s] = { survived: 0, total: 0 };
-    survivalBySex[s].total++;
-    if (r.Survived == 1) survivalBySex[s].survived++;
+  // Survival by Sex
+  const survBySex = {};
+  trainData.forEach(r => {
+    if (r.Survived != null) {
+      survBySex[r.Sex] = survBySex[r.Sex] || { surv: 0, total: 0 };
+      survBySex[r.Sex].total++;
+      if (r.Survived === 1) survBySex[r.Sex].surv++;
+    }
   });
-  $('previewInfo').textContent = "Survival by Sex: " + JSON.stringify(survivalBySex, null, 2);
+  const sexValues = Object.keys(survBySex).map(k => ({
+    x: k,
+    y: survBySex[k].surv / survBySex[k].total
+  }));
+  tfvis.render.barchart({ name: 'Survival by Sex', tab: 'Inspect' }, sexValues);
+
+  setDisabled('preprocess-btn', false);
 });
 
-// ------------------------------
-// Preprocessing
-// ------------------------------
-function median(values) {
-  const nums = values.filter(v => v != null).sort((a, b) => a - b);
-  const mid = Math.floor(nums.length / 2);
-  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
-}
+// --- Preprocess ---
+$('preprocess-btn').addEventListener('click', () => {
+  const addFamily = $('toggle-family').checked;
 
-function mode(values) {
-  const freq = {};
-  values.forEach(v => { if (v) freq[v] = (freq[v] || 0) + 1; });
-  return Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
-}
+  const imputeMedian = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v != null);
+    vals.sort((a, b) => a - b);
+    return vals[Math.floor(vals.length / 2)];
+  };
+  const imputeMode = (arr, key) => {
+    const counts = {};
+    arr.forEach(r => { counts[r[key]] = (counts[r[key]] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  };
 
-function preprocessData(data, isTrain = true) {
-  // Impute
-  const ageMed = median(data.map(r => r.Age));
-  const embMode = mode(data.map(r => r.Embarked));
-  data.forEach(r => {
+  const ageMed = imputeMedian(trainData, 'Age');
+  const embMode = imputeMode(trainData, 'Embarked');
+  trainData.forEach(r => {
+    if (!r.Age) r.Age = ageMed;
+    if (!r.Embarked) r.Embarked = embMode;
+  });
+  testData.forEach(r => {
     if (!r.Age) r.Age = ageMed;
     if (!r.Embarked) r.Embarked = embMode;
   });
 
-  // Feature engineering
-  data.forEach(r => {
-    r.FamilySize = (r.SibSp || 0) + (r.Parch || 0) + 1;
-    r.IsAlone = r.FamilySize === 1 ? 1 : 0;
+  // Features
+  featureNames = ['Age', 'Fare'];
+  if (addFamily) { featureNames.push('FamilySize', 'IsAlone'); }
+  ['Pclass', 'Sex', 'Embarked'].forEach(cat => {
+    const uniq = [...new Set(trainData.map(r => r[cat]))];
+    uniq.forEach(u => featureNames.push(`${cat}_${u}`));
   });
 
-  // One-hot encode
-  const sexVals = ["male", "female"];
-  const pclassVals = [1, 2, 3];
-  const embVals = ["C", "Q", "S"];
-
-  function oneHotEncode(val, categories) {
-    return categories.map(c => (val === c ? 1 : 0));
-  }
-
-  const features = data.map(r => {
-    const sexOH = oneHotEncode(r.Sex, sexVals);
-    const pclassOH = oneHotEncode(r.Pclass, pclassVals);
-    const embOH = oneHotEncode(r.Embarked, embVals);
-    return [
-      (r.Age - 30) / 15, // scaled
-      (r.Fare - 32) / 50,
-      r.SibSp,
-      r.Parch,
-      r.FamilySize,
-      r.IsAlone,
-      ...sexOH,
-      ...pclassOH,
-      ...embOH
-    ];
+  const proc = rows => rows.map(r => {
+    let feats = [];
+    let age = (r.Age - ageMed) / ageMed;
+    let fare = (r.Fare - (r.Fare || 0)) / (r.Fare || 1);
+    feats.push(age, fare);
+    if (addFamily) {
+      const fs = r.SibSp + r.Parch + 1;
+      feats.push(fs, fs === 1 ? 1 : 0);
+    }
+    ['Pclass', 'Sex', 'Embarked'].forEach(cat => {
+      const uniq = [...new Set(trainData.map(rr => rr[cat]))];
+      uniq.forEach(u => feats.push(r[cat] === u ? 1 : 0));
+    });
+    return feats;
   });
 
-  featureNames = [
-    "Age", "Fare", "SibSp", "Parch", "FamilySize", "IsAlone",
-    ...sexVals.map(s => "Sex_" + s),
-    ...pclassVals.map(p => "Pclass_" + p),
-    ...embVals.map(e => "Embarked_" + e)
-  ];
+  const X = proc(trainData);
+  const Y = trainData.map(r => r.Survived);
+  const N = X.length, split = Math.floor(N * 0.8);
+  xTrain = tf.tensor2d(X.slice(0, split));
+  yTrain = tf.tensor2d(Y.slice(0, split), [split, 1]);
+  xVal = tf.tensor2d(X.slice(split));
+  yVal = tf.tensor2d(Y.slice(split), [N - split, 1]);
 
-  return tf.tensor2d(features);
-}
+  testX = tf.tensor2d(proc(testData));
 
-$('btnPreprocess').addEventListener('click', () => {
-  if (!rawTrain) return;
-  trainData = rawTrain.filter(r => r.Survived != null);
-  const labels = trainData.map(r => r.Survived);
-
-  const xs = preprocessData(trainData);
-  const ys = tf.tensor2d(labels, [labels.length, 1]);
-
-  // Split 80/20
-  const split = Math.floor(xs.shape[0] * 0.8);
-  trainXs = xs.slice([0, 0], [split, xs.shape[1]]);
-  trainYs = ys.slice([0, 0], [split, 1]);
-  valXs = xs.slice([split, 0], [xs.shape[0] - split, xs.shape[1]]);
-  valYs = ys.slice([split, 0], [ys.shape[0] - split, 1]);
-
-  if (rawTest) testXs = preprocessData(rawTest, false);
-
-  $('featureInfo').textContent = "Features: " + featureNames.join(", ") +
-    `\nTrain shape: ${trainXs.shape}, Val shape: ${valXs.shape}`;
-  setDisabled('btnBuild', false);
-  setDisabled('btnShowFeatures', false);
+  $('preprocessing-output').textContent = `Features: ${featureNames.join(", ")}\nTrain shape: ${xTrain.shape}`;
+  setDisabled('create-model-btn', false);
 });
 
-$('btnShowFeatures').addEventListener('click', () => {
-  $('featureInfo').textContent = "Final feature names:\n" + featureNames.join(", ");
-});
-
-// ------------------------------
-// Model
-// ------------------------------
-$('btnBuild').addEventListener('click', () => {
+// --- Model ---
+$('create-model-btn').addEventListener('click', () => {
   model = tf.sequential();
   model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [featureNames.length] }));
   model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
   model.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
 
-  $('modelSummary').textContent = "Model built. Hidden:16 relu, Output:sigmoid";
-  setDisabled('btnSummary', false);
-  setDisabled('btnTrain', false);
+  $('model-summary').textContent = "Model created.";
+  setDisabled('train-btn', false);
 });
 
-$('btnSummary').addEventListener('click', () => {
-  model.summary();
-});
-
-// ------------------------------
-// Training
-// ------------------------------
-$('btnTrain').addEventListener('click', async () => {
-  if (!model) return;
-  stopTrainingFlag = false;
-  $('trainLog').textContent = "";
-
-  const history = await model.fit(trainXs, trainYs, {
-    epochs: 50,
-    batchSize: 32,
-    validationData: [valXs, valYs],
-    callbacks: {
-      onEpochEnd: (epoch, logs) => {
-        $('trainLog').textContent += `\nEpoch ${epoch}: loss=${logs.loss.toFixed(4)}, acc=${logs.acc?.toFixed(4)}`;
-        if (stopTrainingFlag) return false;
-      }
-    }
+// --- Train ---
+$('train-btn').addEventListener('click', async () => {
+  stopTraining = false;
+  setDisabled('stop-train-btn', false);
+  await model.fit(xTrain, yTrain, {
+    epochs: 50, batchSize: 32, validationData: [xVal, yVal],
+    callbacks: tfvis.show.fitCallbacks({ name: 'Training', tab: 'Training' }, ['loss', 'val_loss', 'acc', 'val_acc'], { callbacks: ['onEpochEnd'] })
   });
-
-  valPredProbs = model.predict(valXs).arraySync().map(p => p[0]);
-  setDisabled('btnEval', false);
+  setDisabled('stop-train-btn', true);
+  setDisabled('predict-btn', false);
+  setDisabled('export-btn', false);
+  setDisabled('save-model-btn', false);
 });
 
-$('btnStop').addEventListener('click', () => stopTrainingFlag = true);
+// --- Stop ---
+$('stop-train-btn').addEventListener('click', () => stopTraining = true);
 
-// ------------------------------
-// Metrics
-// ------------------------------
-function confusionMatrix(yTrue, yProb, thresh = 0.5) {
-  let tp = 0, tn = 0, fp = 0, fn = 0;
-  yTrue.forEach((y, i) => {
-    const pred = yProb[i] >= thresh ? 1 : 0;
-    if (y === 1 && pred === 1) tp++;
-    else if (y === 0 && pred === 0) tn++;
-    else if (y === 0 && pred === 1) fp++;
-    else if (y === 1 && pred === 0) fn++;
+// --- Predict ---
+$('predict-btn').addEventListener('click', async () => {
+  const preds = model.predict(testX).arraySync().map(v => v[0]);
+  $('prediction-output').textContent = preds.slice(0, 10).map(p => p.toFixed(3)).join(", ") + "...";
+});
+
+// --- Export ---
+$('export-btn').addEventListener('click', () => {
+  let csv = "PassengerId,Survived\n";
+  testData.forEach((r, i) => {
+    const p = model.predict(tf.tensor2d([testX.arraySync()[i]])).arraySync()[0][0];
+    csv += `${r.PassengerId},${p >= 0.5 ? 1 : 0}\n`;
   });
-  return { tp, tn, fp, fn };
-}
-
-$('thresholdSlider').addEventListener('input', e => {
-  $('thresholdVal').textContent = e.target.value;
-});
-
-$('btnEval').addEventListener('click', () => {
-  if (!valPredProbs) return;
-  const yTrue = valYs.arraySync().map(r => r[0]);
-  const thresh = parseFloat($('thresholdSlider').value);
-  const cm = confusionMatrix(yTrue, valPredProbs, thresh);
-  const precision = cm.tp / (cm.tp + cm.fp);
-  const recall = cm.tp / (cm.tp + cm.fn);
-  const f1 = 2 * precision * recall / (precision + recall);
-
-  $('metricInfo').textContent =
-    `Confusion Matrix @${thresh}:\nTP:${cm.tp}, TN:${cm.tn}, FP:${cm.fp}, FN:${cm.fn}\n` +
-    `Precision:${precision.toFixed(3)}, Recall:${recall.toFixed(3)}, F1:${f1.toFixed(3)}`;
-
-  setDisabled('btnPredict', false);
-});
-
-// ------------------------------
-// Predict & Export
-// ------------------------------
-$('btnPredict').addEventListener('click', () => {
-  if (!testXs) return alert("No test.csv loaded");
-  const probs = model.predict(testXs).arraySync().map(p => p[0]);
-  const thresh = parseFloat($('thresholdSlider').value);
-  const preds = probs.map(p => (p >= thresh ? 1 : 0));
-  rawTest.forEach((r, i) => r.Survived = preds[i]);
-
-  $('predictionInfo').textContent = "Predictions ready. Example:\n" + JSON.stringify(rawTest.slice(0, 5), null, 2);
-  setDisabled('btnExport', false);
-});
-
-$('btnExport').addEventListener('click', () => {
-  const rows = [["PassengerId", "Survived"], ...rawTest.map(r => [r.PassengerId, r.Survived])];
-  const csv = rows.map(r => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: 'text/csv' });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "submission.csv";
-  link.click();
-  setDisabled('btnSaveModel', false);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'submission.csv';
+  a.click();
 });
 
-$('btnSaveModel').addEventListener('click', async () => {
+// --- Save Model ---
+$('save-model-btn').addEventListener('click', async () => {
   await model.save('downloads://titanic-tfjs');
-  alert("Model saved to downloads");
 });
