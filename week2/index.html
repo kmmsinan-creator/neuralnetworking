@@ -2,76 +2,102 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Titanic Binary Classifier (TensorFlow.js)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <title>Titanic Survival Classifier - TensorFlow.js</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="app.js" defer></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.5; }
-    section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
-    h2 { margin-top: 0; }
-    button { margin: 5px; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f8f9fa; }
+    header { background: #343a40; color: #fff; padding: 1rem; text-align: center; }
+    section { padding: 1rem 2rem; border-bottom: 1px solid #ddd; }
+    h2 { margin-top: 0; color: #343a40; }
+    button { padding: 0.5rem 1rem; margin: 0.25rem; border: none; border-radius: 5px; cursor: pointer; }
     button:disabled { background: #ccc; cursor: not-allowed; }
-    pre { background: #f9f9f9; padding: 10px; border-radius: 6px; overflow-x: auto; }
+    .btn-primary { background: #007bff; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .output { background: #fff; border: 1px solid #ddd; padding: 0.5rem; margin-top: 0.5rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+    .metrics-box { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+    .metric-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; flex: 1; min-width: 120px; text-align: center; }
+    .slider-container { margin: 1rem 0; }
+    .note { font-size: 0.9rem; color: #555; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>🚢 Titanic Survival Prediction (TensorFlow.js)</h1>
+  <header>
+    <h1>Titanic Survival Classifier (TensorFlow.js)</h1>
+    <p>End-to-end browser-based ML workflow — no server required.</p>
+  </header>
 
+  <!-- Data Load -->
   <section>
-    <h2>Data Load</h2>
-    <input type="file" id="trainFile" accept=".csv"> Train.csv<br><br>
-    <input type="file" id="testFile" accept=".csv"> Test.csv
-    <pre id="previewInfo"></pre>
-    <button id="btnPreview" disabled>Preview</button>
-    <button id="btnInspect" disabled>Inspect Survival Rates</button>
+    <h2>1. Data Load</h2>
+    <input type="file" id="trainFile" accept=".csv"> Train CSV<br>
+    <input type="file" id="testFile" accept=".csv"> Test CSV<br>
+    <button id="load-data-btn" class="btn-primary">Load Data</button>
+    <div id="data-status" class="output"></div>
   </section>
 
+  <!-- Inspect -->
   <section>
-    <h2>Preprocessing</h2>
-    <pre id="featureInfo"></pre>
-    <button id="btnPreprocess" disabled>Preprocess</button>
-    <button id="btnShowFeatures" disabled>Show Features</button>
+    <h2>2. Inspect</h2>
+    <button id="inspect-btn" class="btn-secondary" disabled>Inspect Data</button>
+    <div id="data-preview" class="output"></div>
+    <div id="data-stats" class="output"></div>
+    <div id="charts"></div>
   </section>
 
+  <!-- Preprocessing -->
   <section>
-    <h2>Model</h2>
-    <pre id="modelSummary"></pre>
-    <button id="btnBuild" disabled>Build Model</button>
-    <button id="btnSummary" disabled>Show Summary</button>
+    <h2>3. Preprocessing</h2>
+    <button id="preprocess-btn" class="btn-primary" disabled>Preprocess</button>
+    <label><input type="checkbox" id="toggle-family"> Add FamilySize/IsAlone features</label>
+    <div id="preprocessing-output" class="output"></div>
   </section>
 
+  <!-- Model -->
   <section>
-    <h2>Training</h2>
-    <pre id="trainLog"></pre>
-    <button id="btnTrain" disabled>Train</button>
-    <button id="btnStop" disabled>Stop Training</button>
+    <h2>4. Model</h2>
+    <button id="create-model-btn" class="btn-primary" disabled>Create Model</button>
+    <div id="model-summary" class="output"></div>
   </section>
 
+  <!-- Training -->
   <section>
-    <h2>Metrics</h2>
-    <pre id="metricInfo"></pre>
-    <label>Threshold:
-      <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.5">
-      <span id="thresholdVal">0.5</span>
-    </label>
-    <button id="btnEval" disabled>Evaluate</button>
+    <h2>5. Training</h2>
+    <button id="train-btn" class="btn-primary" disabled>Train Model</button>
+    <button id="stop-train-btn" class="btn-secondary" disabled>Stop Training</button>
+    <div id="training-log" class="output"></div>
+    <div id="charts-training"></div>
   </section>
 
+  <!-- Metrics -->
   <section>
-    <h2>Prediction & Export</h2>
-    <pre id="predictionInfo"></pre>
-    <button id="btnPredict" disabled>Predict</button>
-    <button id="btnExport" disabled>Export CSV</button>
-    <button id="btnSaveModel" disabled>Save Model</button>
+    <h2>6. Metrics</h2>
+    <div class="slider-container">
+      Threshold: <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.5">
+      <span id="threshold-value">0.5</span>
+    </div>
+    <div id="metrics-output" class="metrics-box"></div>
+    <div id="roc-curve"></div>
+    <div id="confusion-matrix"></div>
   </section>
 
+  <!-- Prediction -->
   <section>
-    <h2>Deployment Notes</h2>
-    <p>Create a public GitHub repo, commit <code>index.html</code> and <code>app.js</code>, enable GitHub Pages (main branch, root), then share your URL.</p>
+    <h2>7. Prediction</h2>
+    <button id="predict-btn" class="btn-primary" disabled>Predict Test.csv</button>
+    <div id="prediction-output" class="output"></div>
   </section>
 
-  <script src="app.js" defer></script>
+  <!-- Export -->
+  <section>
+    <h2>8. Export</h2>
+    <button id="export-btn" class="btn-primary" disabled>Export submission.csv</button>
+    <button id="save-model-btn" class="btn-secondary" disabled>Download Model</button>
+    <div class="note">
+      Deployment: Commit <code>index.html</code> and <code>app.js</code> to a public GitHub repo, enable GitHub Pages, and share the URL.
+    </div>
+  </section>
 </body>
 </html>
