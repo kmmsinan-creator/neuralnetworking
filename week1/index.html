@@ -278,14 +278,15 @@ loadCSV().then(data=>{
       const xi = data.map(d=>+d[features[i]]);
       const yj = data.map(d=>+d[features[j]]);
       corrMatrix.push({
-        x: features[j],
-        y: features[i],
+        x: j,   // numeric index
+        y: i,   // numeric index
         v: correlation(xi,yj)
       });
     }
   }
 
   const ctxCorr = document.getElementById("corrChart").getContext("2d");
+
   new Chart(ctxCorr, {
     type: 'matrix',
     data: {
@@ -311,10 +312,72 @@ loadCSV().then(data=>{
         title:{display:true,text:'Correlation Heatmap',color:'#fff'}
       },
       scales:{
-        x:{type:'category',labels:features,grid:{display:false},ticks:{color:'#fff'}},
-        y:{type:'category',labels:features,grid:{display:false},ticks:{color:'#fff'}}
+        x:{
+          type:'linear',
+          min:-0.5,
+          max:features.length-0.5,
+          ticks:{
+            color:'#fff',
+            callback:(v)=>features[v]
+          },
+          grid:{display:false}
+        },
+        y:{
+          type:'linear',
+          min:-0.5,
+          max:features.length-0.5,
+          ticks:{
+            color:'#fff',
+            callback:(v)=>features[v]
+          },
+          grid:{display:false}
+        }
       }
-    }
+    },
+    plugins:[
+      {
+        id:'legendGradient',
+        afterDraw(chart){
+          const {ctx, chartArea:{left,right,bottom}} = chart;
+          const barHeight = 12;
+          const barTop = bottom + 25;
+
+          const gradient = ctx.createLinearGradient(left,0,right,0);
+          gradient.addColorStop(0,"rgb(255,0,0)");
+          gradient.addColorStop(0.5,"rgb(255,255,255)");
+          gradient.addColorStop(1,"rgb(0,0,255)");
+
+          ctx.fillStyle = gradient;
+          ctx.fillRect(left, barTop, right-left, barHeight);
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "12px sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText("-1", left, barTop+barHeight+12);
+          ctx.textAlign = "center";
+          ctx.fillText("0", (left+right)/2, barTop+barHeight+12);
+          ctx.textAlign = "right";
+          ctx.fillText("+1", right, barTop+barHeight+12);
+        }
+      },
+      {
+        id:'matrixLabels',
+        afterDatasetsDraw(chart){
+          const {ctx} = chart;
+          chart.data.datasets[0].data.forEach((d,i)=>{
+            const meta = chart.getDatasetMeta(0);
+            const pos = meta.data[i].getCenterPoint();
+            ctx.save();
+            ctx.fillStyle = "#000";
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(d.v.toFixed(2), pos.x, pos.y);
+            ctx.restore();
+          });
+        }
+      }
+    ]
   });
 
 });
