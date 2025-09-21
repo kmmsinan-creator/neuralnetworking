@@ -30,7 +30,6 @@ body{
   background-size: cover;
 }
 .container{max-width:1200px;margin:0 auto}
-
 .header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
 .brand{display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ffcc66,#ff9999);box-shadow:var(--shadow)}
@@ -295,9 +294,11 @@ loadCSV().then(data=>{
         data: corrMatrix,
         backgroundColor(ctx) {
           const v = ctx.dataset.data[ctx.dataIndex].v;
-          const r = v>0 ? Math.round(v*255) : 0;
-          const b = v<0 ? Math.round(-v*255) : 0;
-          return `rgba(${r},0,${b},0.8)`;
+          // diverging red–white–blue
+          const r = v < 0 ? Math.round(-v * 255) : 0;
+          const b = v > 0 ? Math.round(v * 255) : 0;
+          const g = 255 - Math.max(r,b);
+          return `rgba(${r},${g},${b},0.9)`;
         },
         width: ({chart}) => (chart.chartArea.width / features.length) - 4,
         height: ({chart}) => (chart.chartArea.height / features.length) - 4,
