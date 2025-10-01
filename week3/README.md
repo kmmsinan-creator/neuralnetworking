@@ -1,40 +1,70 @@
-# Titanic Binary Classifier - TensorFlow.js (Browser)
+# Titanic Survival Classifier (TensorFlow.js)
 
-This project provides a **shallow neural network binary classifier** for the Kaggle Titanic dataset, implemented entirely in the browser using TensorFlow.js and tfjs-vis. No server or backend required — ready for instant hosting via GitHub Pages.
+This project is a **browser-based machine learning app** that predicts Titanic passenger survival using the Kaggle dataset.  
+It is built with **TensorFlow.js** and **tfjs-vis**, and runs entirely in the browser without a backend.
 
-## 🚀 Demo
+---
 
-**Try it out instantly in your browser by uploading `train.csv` and `test.csv` from [Kaggle Titanic](https://www.kaggle.com/c/titanic/data).**
+## 🚩 Fixed Issues
 
-## Features
+### 1. Comma Escape Problem in CSV
+**Problem:**  Titanic dataset has passenger names like  
+"Cumings, Mrs. John Bradley (Florence Briggs Thayer)".  
+If you split CSV lines just by ,, the name breaks into multiple columns → data loads incorrectly.  
+**Fix:** Use PapaParse library instead of manual string splitting.  
+PapaParse correctly reads CSV files with quotes and commas inside text fields.  
 
-- **Client-side only**: All computation runs on your device, zero backend
-- **Upload your own CSV**: No hardcoded data; works with user-provided `train.csv`/`test.csv`
-- **Data preview and stats**: Inspect table preview, missing values, shape
-- **Interactive preprocessing**: Median/mode imputation, standardization, one-hot encoding, optional family features
-- **Live model training**: Single hidden layer, early stopping, live tfjs-vis loss/acc plots
-- **ROC/AUC, metrics, confusion matrix** with interactive threshold slider
-- **Export for Kaggle**: Download `submission.csv`, probability CSV, and trained model
-- **Deploy easily**: Just push files to a GitHub repo, enable Pages
+Example:
+Papa.parse(fileText, { header: true, dynamicTyping: true, skipEmptyLines: true });
 
-## Usage
 
-### 1. **Prepare your dataset**
-   - Download `train.csv` and `test.csv` from the [Titanic Kaggle competition](https://www.kaggle.com/c/titanic/data).
+---
 
-### 2. **Run the app**
-   - Open `index.html` directly, or visit the [GitHub Pages](#deployment) link if deployed.
+### 2. Evaluation Table Not Showing
+**Problem:** After training, evaluation metrics (accuracy, precision, recall, F1, confusion matrix) didn’t show.  
+Cause → mismatch in how TensorFlow.js logs metrics (acc vs accuracy) and missing DOM updates.  
+**Fix:** Updated the evaluation step to:  
+- Use logs.acc || logs.accuracy safely.  
+- Calculate confusion matrix and metrics manually from predictions.  
+- Always update the evaluation <div> with results.  
 
-### 3. **Workflow**
-   1. **Data Load:** Upload both CSVs, inspect data preview and missing values.
-   2. **Preprocessing:** Click to engineer features and impute missing values. Optionally add FamilySize/IsAlone.
-   3. **Model:** Click to create a shallow neural network.
-   4. **Training:** Start training. Watch tfjs-vis output for live performance.
-   5. **Metrics:** Adjust the ROC threshold slider; view confusion matrix, precision, recall, F1, AUC.
-   6. **Prediction:** Predict probabilities for the test set.
-   7. **Export:** Download predictions and model (for Kaggle submission).
+---
 
-### 4. **Deployment**
+### 3. Summarizing the Code Logic
 
-- Create a public GitHub repository (e.g., `username/titanic-tfjs`).
-- Commit at least these two files:
+Here is the high-level workflow of the app:
+
+**Load Data**  
+- User uploads train.csv and test.csv.  
+- Data parsed with PapaParse.  
+
+**Inspect Data**  
+- Display preview tables (first 10 rows).  
+- Show basic visualizations (survival by sex/class) using tfjs-vis.  
+
+**Preprocess Data**  
+- Fill missing values with median (Age, Fare) or mode (Embarked).  
+- Normalize numerical features.  
+- One-hot encode categorical features (Sex, Pclass, Embarked).  
+- Optionally add engineered features: FamilySize and IsAlone.  
+
+**Create Model**  
+- Build a neural network in TensorFlow.js:  
+  - Input layer  
+  - Dense hidden layers with ReLU  
+  - Output layer with Sigmoid  
+- Compile with Adam optimizer + binary crossentropy loss.  
+
+**Train Model**  
+- Split data into training/validation sets.  
+- Train the model for several epochs.  
+- Visualize training progress (loss & accuracy curves).  
+
+**Evaluate Model**  
+- Predict on validation set.  
+- Show confusion matrix and metrics: Accuracy, Precision, Recall, F1.  
+- Allow adjusting decision threshold with a slider.  
+
+**Predict & Export**  
+- Predict survival on test set.  
+- Export results as submission.csv for Kaggle.  
