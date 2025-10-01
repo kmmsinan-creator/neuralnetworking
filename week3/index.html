@@ -9,55 +9,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
 
-  <!-- ✅ PapaParse for safe CSV parsing -->
+  <!-- ✅ PapaParse for robust CSV parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <!-- App logic -->
   <script src="app.js"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      line-height: 1.6;
-    }
-    h1 {
-      color: #0077cc;
-    }
-    h2 {
-      margin-top: 30px;
-      color: #444;
-    }
-    section {
-      border: 1px solid #ccc;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 6px;
-    }
-    button {
-      background: #0077cc;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      margin-top: 5px;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:disabled {
-      background: #999;
-      cursor: not-allowed;
-    }
-    table {
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 4px 8px;
-    }
-    #threshold-slider {
-      width: 200px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #0077cc; }
+    section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
+    button { background: #0077cc; color: white; border: none; padding: 8px 15px; margin-top: 5px; cursor: pointer; border-radius: 4px; }
+    button:disabled { background: #999; cursor: not-allowed; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 4px 8px; }
   </style>
 </head>
 <body>
@@ -66,7 +31,7 @@
   <!-- 1. Load Data -->
   <section>
     <h2>1. Load Data</h2>
-    <p>Upload <b>train.csv</b> and <b>test.csv</b> (from Kaggle Titanic dataset):</p>
+    <p>Upload <b>train.csv</b> and <b>test.csv</b>:</p>
     <input type="file" id="train-file" accept=".csv" />
     <input type="file" id="test-file" accept=".csv" />
     <br/>
@@ -99,7 +64,8 @@
   <!-- 4. Evaluation -->
   <section>
     <h2>4. Evaluation</h2>
-    <p>Adjust threshold: 
+    <p>
+      Adjust threshold:
       <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.5" disabled />
       <span id="threshold-value">0.50</span>
     </p>
