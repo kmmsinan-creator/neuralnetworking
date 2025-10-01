@@ -15,20 +15,16 @@ const NUMERICALFEATURES = ['Age','Fare','SibSp','Parch'];
 const CATEGORICALFEATURES = ['Pclass','Sex','Embarked'];
 
 // ========== UTILITIES ==========
-// Robust CSV parser supporting quoted fields, commas
+// Robust CSV parser supporting quoted, escaped commas
 function parseCSV(csvText) {
     const rows = [];
-    const headers = [];
-    // Regexp supporting quoted commas
-    const re_valid = /^\s*(?:'[^']*'|\"[^\"]*\"|[^,]+)*\s*(?:,\s*(?:'[^']*'|\"[^\"]*\"|[^,]+))*\s*$/;
-    const lines = csvText.replace(/\r/g,'').split('\n').filter(l => l.trim() !== '');
-    // Parse headers
+    const lines = csvText.replace(/\r/g,'').split('\n').filter(l => l.trim());
+    if (lines.length === 0) return [];
     let headerParts = parseCSVRow(lines[0]);
-    headerParts.forEach(h => headers.push(h.trim()));
-    // Parse rows
+    const headers = headerParts.map(h => h.trim());
     for (let i = 1; i < lines.length; ++i) {
         let rowParts = parseCSVRow(lines[i]);
-        if (rowParts.length !== headers.length) continue; // skip corrupt
+        if (rowParts.length !== headers.length) continue;
         const obj = {};
         headers.forEach((h, idx) => {
             let v = rowParts[idx];
@@ -41,7 +37,7 @@ function parseCSV(csvText) {
     }
     return rows;
 }
-// Helper: parse a CSV row supporting quoted fields
+// Helper for quoted, escaped commas:
 function parseCSVRow(line) {
     const res = [];
     let i = 0, val = '', inQuotes = false, quoteChar = '';
@@ -61,6 +57,7 @@ function parseCSVRow(line) {
     res.push(val);
     return res.map(v => v.trim());
 }
+
 // File input: read as text
 function readFile(file) {
     return new Promise((resolve, reject) => {
@@ -73,9 +70,14 @@ function readFile(file) {
 
 // ========== DATA LOAD & INSPECTION ==========
 async function loadData() {
-    const trainFile = document.getElementById('train-file').files[0];
-    const testFile = document.getElementById('test-file').files[0];
+    const trainFileInput = document.getElementById('train-file');
+    const testFileInput = document.getElementById('test-file');
     const statusDiv = document.getElementById('data-status');
+    const inspectBtn = document.getElementById('inspect-btn');
+    inspectBtn.disabled = true; // Only enabled after load success
+
+    const trainFile = trainFileInput.files[0];
+    const testFile = testFileInput.files[0];
     if (!trainFile || !testFile) {
         alert('Please upload both training and test CSV files.');
         return;
@@ -83,13 +85,18 @@ async function loadData() {
     statusDiv.innerHTML = 'Loading data...';
     try {
         const trainText = await readFile(trainFile);
-        trainData = parseCSV(trainText);
         const testText = await readFile(testFile);
+
+        trainData = parseCSV(trainText);
         testData = parseCSV(testText);
+
+        if (!trainData.length || !testData.length) throw new Error("One or both CSV files are empty or corrupted.");
+
         statusDiv.innerHTML = `Data loaded successfully! Training: ${trainData.length} samples, Test: ${testData.length} samples.`;
-        document.getElementById('inspect-btn').disabled = false;
+        inspectBtn.disabled = false;
     } catch (error) {
         statusDiv.innerHTML = `Error loading data: ${error.message}`;
+        alert(`Error loading data: ${error.message}`);
         console.error(error);
     }
 }
@@ -364,6 +371,7 @@ async function trainModel() {
         validationPredictions = model.predict(validationData);
         document.getElementById('threshold-slider').disabled = false;
         document.getElementById('predict-btn').disabled = false;
+        document.getElementById('predict-btn').disabled = false;
         // Setup slider and evaluation
         document.getElementById('threshold-slider').addEventListener('input', updateMetrics);
         updateMetrics();
@@ -456,4 +464,97 @@ async function predict() {
     try {
         const testFeatures = tf.tensor2d(preprocessedTestData.features);
         testPredictions = model.predict(testFeatures);
-        const predVals = Array.from
+        const predVals = Array.from(await testPredictions.dataSync());
+        // Prepare results table
+        const results = preprocessedTestData.passengerIds.map((id,i) => ({
+            PassengerId: id,
+            Survived: predVals[i]>=0.5?1:0,
+            Probability: predVals[i]
+        }));
+        outputDiv.innerHTML = "<h3>Prediction Results (First 10 Rows)</h3>";
+        outputDiv.appendChild(createPredictionTable(results.slice(0,10)));
+        outputDiv.innerHTML += `<p>Predictions completed! Total: ${results.length} samples.</p>`;
+        document.getElementById('export-btn').disabled = false;
+    } catch(error) {
+        outputDiv.innerHTML = `Error during prediction: ${error.message}`;
+        console.error(error);
+    }
+}
+
+function createPredictionTable(rows) {
+    const table = document.createElement('table');
+    const fields = ['PassengerId','Survived','Probability'];
+    // Header
+    const headerRow = document.createElement('tr');
+    fields.forEach(h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+    // Data rows
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        fields.forEach(f => {
+            const td = document.createElement('td');
+            td.textContent = f === 'Probability' ? Number(row[f]).toFixed(4) : row[f];
+            tr.appendChild(td);
+        });
+        table.appendChild(tr);
+    });
+    return table;
+}
+
+async function exportResults() {
+    if (!testPredictions || !preprocessedTestData) {
+        alert("Please make predictions first.");
+        return;
+    }
+    const statusDiv = document.getElementById('export-status');
+    statusDiv.innerHTML = 'Exporting results...';
+    try {
+        const predVals = Array.from(await testPredictions.dataSync());
+        // Submission CSV
+        let submissionCSV = 'PassengerId,Survived\n';
+        preprocessedTestData.passengerIds.forEach((id,i) => {
+            submissionCSV += `${id},${predVals[i]>=0.5?1:0}\n`;
+        });
+        // Probabilities CSV
+        let probabilitiesCSV = 'PassengerId,Probability\n';
+        preprocessedTestData.passengerIds.forEach((id,i) => {
+            probabilitiesCSV += `${id},${predVals[i].toFixed(6)}\n`;
+        });
+        // Download files
+        downloadTextFile(submissionCSV, 'submission.csv');
+        downloadTextFile(probabilitiesCSV, 'probabilities.csv');
+        // Save model
+        await model.save('downloads://titanic-tfjs-model');
+        statusDiv.innerHTML = `<p>Export completed!</p>
+            <p>Downloaded <b>submission.csv</b> (Kaggle format), <b>probabilities.csv</b> (probabilities), and model (browser download).</p>`;
+    } catch(error) {
+        statusDiv.innerHTML = 'Error during export: '+error.message;
+        console.error(error);
+    }
+}
+
+// Download helper
+function downloadTextFile(content, filename) {
+    const blob = new Blob([content], {type:'text/csv'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(()=>document.body.removeChild(link), 100);
+}
+
+// ========== BUTTONS & EVENTS ==========
+document.getElementById('load-btn').addEventListener('click', loadData);
+document.getElementById('inspect-btn').addEventListener('click', inspectData);
+document.getElementById('preprocess-btn').addEventListener('click', preprocessData);
+document.getElementById('create-model-btn').addEventListener('click', createModel);
+document.getElementById('train-btn').addEventListener('click', trainModel);
+document.getElementById('predict-btn').addEventListener('click', predict);
+document.getElementById('export-btn').addEventListener('click', exportResults);
+
+// ========== END ==========
