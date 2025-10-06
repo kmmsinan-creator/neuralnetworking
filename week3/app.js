@@ -1,241 +1,231 @@
-// =============================
-// TITANIC SURVIVAL CLASSIFIER
-// Enhanced Visualization + Inspection
-// =============================
+// app.js - Titanic Survival Classifier with ROC & Confusion Matrix
 
-// Global state
-let trainData = [];
-let testData = [];
-let preprocessedTrain = null;
-let preprocessedTest = null;
-let model = null;
-let validationData = null;
-let validationLabels = null;
-let predictions = null;
+// --- Globals ---
+let trainData = [], testData = [];
+let xTrain, yTrain, xVal, yVal, testX;
+let featureNames = [];
+let model;
+let valPreds = [], valLabels = [];
 
-// CONSTANTS
-const TARGET_FEATURE = "Survived";
-const ID_FEATURE = "PassengerId";
-const NUMERICAL = ["Age", "Fare", "SibSp", "Parch"];
-const CATEGORICAL = ["Pclass", "Sex", "Embarked"];
+// --- Helpers ---
+const $ = id => document.getElementById(id);
+const setDisabled = (id, state) => { $(id).disabled = state; };
 
-// Utility - File read
-const readCSV = (file) =>
-  new Promise((resolve, reject) => {
-    Papa.parse(file, {
-      header: true,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-      complete: (results) => resolve(results.data),
-      error: reject,
+// --- CSV Loader ---
+$('load-data-btn').addEventListener('click', async () => {
+  try {
+    trainData = await loadCSV($('trainFile'));
+    testData = await loadCSV($('testFile'));
+    $('data-status').textContent = `Train: ${trainData.length} rows, Test: ${testData.length} rows`;
+    setDisabled('inspect-btn', false);
+  } catch (err) { alert("CSV load error: " + err); }
+});
+
+function loadCSV(input) {
+  return new Promise((resolve, reject) => {
+    if (!input.files[0]) return reject("No file chosen");
+    Papa.parse(input.files[0], {
+      header: true, dynamicTyping: true, skipEmptyLines: true,
+      complete: res => resolve(res.data), error: err => reject(err)
     });
   });
-
-// =============================
-// STEP 1: LOAD DATA
-// =============================
-document.getElementById("load-data-btn").onclick = async () => {
-  const trainFile = document.getElementById("trainFile").files[0];
-  const testFile = document.getElementById("testFile").files[0];
-  const status = document.getElementById("data-status");
-
-  if (!trainFile || !testFile) {
-    alert("Please upload both train.csv and test.csv!");
-    return;
-  }
-
-  status.textContent = "📥 Loading data...";
-  trainData = await readCSV(trainFile);
-  testData = await readCSV(testFile);
-
-  status.textContent = `✅ Loaded: ${trainData.length} training rows, ${testData.length} test rows`;
-  document.getElementById("inspect-btn").disabled = false;
-};
-
-// =============================
-// STEP 2: INSPECT DATA
-// =============================
-document.getElementById("inspect-btn").onclick = () => {
-  const previewDiv = document.getElementById("data-preview");
-  const statsDiv = document.getElementById("data-stats");
-  previewDiv.innerHTML = JSON.stringify(trainData.slice(0, 5), null, 2);
-
-  const missing = {};
-  Object.keys(trainData[0]).forEach((key) => {
-    missing[key] =
-      trainData.filter((r) => r[key] === null || r[key] === "").length;
-  });
-
-  statsDiv.innerHTML =
-    "🔍 Missing values per column:\n" + JSON.stringify(missing, null, 2);
-
-  document.getElementById("preprocess-btn").disabled = false;
-
-  createInspectionVisualizations(trainData);
-};
-
-// =============================
-// VISUALIZATIONS (INSPECTION)
-// =============================
-function createInspectionVisualizations(data) {
-  tfvis.visor().open();
-  tfvis.visor().setActiveTab("Data Insights");
-
-  // --- Survival by Sex ---
-  const sexGroups = {};
-  data.forEach((row) => {
-    if (!row.Sex) return;
-    if (!sexGroups[row.Sex]) sexGroups[row.Sex] = { survived: 0, total: 0 };
-    sexGroups[row.Sex].total++;
-    if (row.Survived === 1) sexGroups[row.Sex].survived++;
-  });
-  const sexValues = Object.entries(sexGroups).map(([sex, s]) => ({
-    x: sex,
-    y: (s.survived / s.total) * 100,
-  }));
-  tfvis.render.barchart(
-    { name: "Survival Rate by Sex", tab: "Data Insights" },
-    sexValues,
-    {
-      height: 300,
-      xLabel: "Sex",
-      yLabel: "Survival Rate (%)",
-      color: ["#06b6d4"],
-      backgroundColor: "#0f172a",
-      fontSize: 14,
-    }
-  );
-
-  // --- Survival by Pclass ---
-  const classGroups = {};
-  data.forEach((row) => {
-    if (!row.Pclass) return;
-    if (!classGroups[row.Pclass])
-      classGroups[row.Pclass] = { survived: 0, total: 0 };
-    classGroups[row.Pclass].total++;
-    if (row.Survived === 1) classGroups[row.Pclass].survived++;
-  });
-  const pclassValues = Object.entries(classGroups).map(([cls, s]) => ({
-    x: "Class " + cls,
-    y: (s.survived / s.total) * 100,
-  }));
-  tfvis.render.barchart(
-    { name: "Survival Rate by Class", tab: "Data Insights" },
-    pclassValues,
-    {
-      height: 300,
-      xLabel: "Class",
-      yLabel: "Survival Rate (%)",
-      color: ["#3b82f6"],
-      backgroundColor: "#0f172a",
-      fontSize: 14,
-    }
-  );
-
-  // --- Age distribution (histogram by Survived) ---
-  const survivedAges = data.filter(d => d.Survived === 1 && d.Age).map(d => d.Age);
-  const notSurvivedAges = data.filter(d => d.Survived === 0 && d.Age).map(d => d.Age);
-  tfvis.render.histogram(
-    { name: "Age Distribution (Survived vs Not)", tab: "Data Insights" },
-    [survivedAges, notSurvivedAges],
-    {
-      height: 300,
-      width: 400,
-      xLabel: "Age",
-      yLabel: "Count",
-      fontSize: 14,
-      seriesColors: ["#22c55e", "#ef4444"],
-      backgroundColor: "#111827",
-    }
-  );
-
-  // --- Fare distribution ---
-  const survivedFare = data.filter(d => d.Survived === 1 && d.Fare).map(d => d.Fare);
-  const notSurvivedFare = data.filter(d => d.Survived === 0 && d.Fare).map(d => d.Fare);
-  tfvis.render.histogram(
-    { name: "Fare Distribution (Survived vs Not)", tab: "Data Insights" },
-    [survivedFare, notSurvivedFare],
-    {
-      height: 300,
-      width: 400,
-      xLabel: "Fare",
-      yLabel: "Count",
-      fontSize: 14,
-      seriesColors: ["#22c55e", "#ef4444"],
-      backgroundColor: "#111827",
-    }
-  );
-
-  // --- Passengers by Embarked ---
-  const embarkedCounts = {};
-  data.forEach((row) => {
-    if (!row.Embarked) return;
-    if (!embarkedCounts[row.Embarked]) embarkedCounts[row.Embarked] = 0;
-    embarkedCounts[row.Embarked]++;
-  });
-  const embarkedValues = Object.entries(embarkedCounts).map(([port, count]) => ({
-    x: port,
-    y: count,
-  }));
-  tfvis.render.barchart(
-    { name: "Passengers by Embarked Port", tab: "Data Insights" },
-    embarkedValues,
-    {
-      height: 300,
-      xLabel: "Port",
-      yLabel: "Passenger Count",
-      color: ["#f59e0b"],
-      backgroundColor: "#0f172a",
-      fontSize: 14,
-    }
-  );
 }
 
-// =============================
-// STEP 3: PREPROCESS DATA
-// =============================
-document.getElementById("preprocess-btn").onclick = () => {
-  const addFamily = document.getElementById("toggle-family").checked;
-  const output = document.getElementById("preprocessing-output");
-  output.textContent = "⚙️ Preprocessing data...";
+// --- Inspect ---
+$('inspect-btn').addEventListener('click', () => {
+  $('data-preview').textContent = JSON.stringify(trainData.slice(0, 5), null, 2);
 
-  const ageMedian = median(trainData.map((r) => r.Age).filter((v) => v));
-  const fareMedian = median(trainData.map((r) => r.Fare).filter((v) => v));
-  const embarkedMode = mode(trainData.map((r) => r.Embarked).filter((v) => v));
+  // Missing values
+  const cols = Object.keys(trainData[0]);
+  const missing = cols.map(c => ({
+    col: c,
+    missing: trainData.filter(r => r[c] === null || r[c] === "").length
+  }));
+  $('data-stats').textContent = JSON.stringify(missing, null, 2);
 
-  const extractFeatures = (row) => {
-    const age = row.Age ?? ageMedian;
-    const fare = row.Fare ?? fareMedian;
-    const embarked = row.Embarked ?? embarkedMode;
-    let features = [age, fare, row.SibSp ?? 0, row.Parch ?? 0];
-
-    // One-hot encode
-    features = features.concat(oneHot(row.Pclass, [1, 2, 3]));
-    features = features.concat(oneHot(row.Sex, ["male", "female"]));
-    features = features.concat(oneHot(embarked, ["C", "Q", "S"]));
-
-    if (addFamily) {
-      const familySize = (row.SibSp || 0) + (row.Parch || 0) + 1;
-      features.push(familySize, familySize === 1 ? 1 : 0);
+  // Survival by Sex
+  const survBySex = {};
+  trainData.forEach(r => {
+    if (r.Survived != null) {
+      survBySex[r.Sex] = survBySex[r.Sex] || { surv: 0, total: 0 };
+      survBySex[r.Sex].total++;
+      if (r.Survived === 1) survBySex[r.Sex].surv++;
     }
+  });
+  const sexValues = Object.keys(survBySex).map(k => ({
+    x: k,
+    y: survBySex[k].surv / survBySex[k].total
+  }));
+  tfvis.render.barchart({ name: 'Survival by Sex', tab: 'Inspect' }, sexValues);
 
-    return features;
+  setDisabled('preprocess-btn', false);
+});
+
+// --- Preprocess ---
+$('preprocess-btn').addEventListener('click', () => {
+  const addFamily = $('toggle-family').checked;
+
+  const imputeMedian = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v != null);
+    vals.sort((a, b) => a - b);
+    return vals[Math.floor(vals.length / 2)];
+  };
+  const imputeMode = (arr, key) => {
+    const counts = {};
+    arr.forEach(r => { counts[r[key]] = (counts[r[key]] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
   };
 
-  preprocessedTrain = {
-    features: tf.tensor2d(trainData.map(extractFeatures)),
-    labels: tf.tensor1d(trainData.map((r) => r[TARGET_FEATURE])),
-  };
-  preprocessedTest = {
-    features: testData.map(extractFeatures),
-    ids: testData.map((r) => r[ID_FEATURE]),
-  };
+  const ageMed = imputeMedian(trainData, 'Age');
+  const embMode = imputeMode(trainData, 'Embarked');
+  trainData.forEach(r => { if (!r.Age) r.Age = ageMed; if (!r.Embarked) r.Embarked = embMode; });
+  testData.forEach(r => { if (!r.Age) r.Age = ageMed; if (!r.Embarked) r.Embarked = embMode; });
 
-  output.textContent = `✅ Preprocessed! Features: ${preprocessedTrain.features.shape[1]} columns`;
-  document.getElementById("create-model-btn").disabled = false;
-};
+  featureNames = ['Age', 'Fare'];
+  if (addFamily) featureNames.push('FamilySize', 'IsAlone');
+  ['Pclass', 'Sex', 'Embarked'].forEach(cat => {
+    [...new Set(trainData.map(r => r[cat]))].forEach(u => featureNames.push(`${cat}_${u}`));
+  });
 
-// =============================
-// MODEL, TRAINING, METRICS, EXPORT
-// =============================
-// (Same as previous message — unchanged modern version)
+  const proc = rows => rows.map(r => {
+    let feats = [];
+    feats.push((r.Age - ageMed) / ageMed);
+    feats.push((r.Fare - (r.Fare || 0)) / ((r.Fare || 1)));
+    if (addFamily) {
+      const fs = r.SibSp + r.Parch + 1;
+      feats.push(fs, fs === 1 ? 1 : 0);
+    }
+    ['Pclass', 'Sex', 'Embarked'].forEach(cat => {
+      [...new Set(trainData.map(rr => rr[cat]))].forEach(u => feats.push(r[cat] === u ? 1 : 0));
+    });
+    return feats;
+  });
+
+  const X = proc(trainData), Y = trainData.map(r => r.Survived);
+  const N = X.length, split = Math.floor(N * 0.8);
+  xTrain = tf.tensor2d(X.slice(0, split));
+  yTrain = tf.tensor2d(Y.slice(0, split), [split, 1]);
+  xVal = tf.tensor2d(X.slice(split));
+  yVal = tf.tensor2d(Y.slice(split), [N - split, 1]);
+
+  testX = tf.tensor2d(proc(testData));
+  $('preprocessing-output').textContent = `Features: ${featureNames.join(", ")}\nTrain shape: ${xTrain.shape}`;
+  setDisabled('create-model-btn', false);
+});
+
+// --- Model ---
+$('create-model-btn').addEventListener('click', () => {
+  model = tf.sequential();
+  model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [featureNames.length] }));
+  model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+  model.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
+  $('model-summary').textContent = "Model created.";
+  setDisabled('train-btn', false);
+});
+
+// --- Train ---
+$('train-btn').addEventListener('click', async () => {
+  await model.fit(xTrain, yTrain, {
+    epochs: 50, batchSize: 32, validationData: [xVal, yVal],
+    callbacks: tfvis.show.fitCallbacks(
+      { name: 'Training', tab: 'Training' },
+      ['loss', 'val_loss', 'acc', 'val_acc'], { callbacks: ['onEpochEnd'] })
+  });
+
+  // Store validation predictions
+  valPreds = model.predict(xVal).arraySync().map(r => r[0]);
+  valLabels = yVal.arraySync().map(r => r[0]);
+
+  computeROC(valLabels, valPreds);
+  updateMetrics(0.5);
+
+  setDisabled('predict-btn', false);
+  setDisabled('export-btn', false);
+  setDisabled('save-model-btn', false);
+});
+
+// --- ROC Curve ---
+function computeROC(yTrue, yProb) {
+  let thresholds = [];
+  for (let t = 0; t <= 1; t += 0.05) thresholds.push(t);
+
+  const roc = thresholds.map(t => {
+    let tp = 0, fp = 0, tn = 0, fn = 0;
+    yTrue.forEach((yt, i) => {
+      const yp = yProb[i] >= t ? 1 : 0;
+      if (yt === 1 && yp === 1) tp++;
+      if (yt === 0 && yp === 1) fp++;
+      if (yt === 0 && yp === 0) tn++;
+      if (yt === 1 && yp === 0) fn++;
+    });
+    const tpr = tp / (tp + fn + 1e-6);
+    const fpr = fp / (fp + tn + 1e-6);
+    return { x: fpr, y: tpr };
+  });
+  tfvis.render.scatterplot({ name: 'ROC Curve', tab: 'Metrics' }, { values: roc }, { xLabel: 'FPR', yLabel: 'TPR' });
+}
+
+// --- Metrics Update ---
+$('threshold-slider').addEventListener('input', e => {
+  const t = parseFloat(e.target.value);
+  $('threshold-value').textContent = t.toFixed(2);
+  updateMetrics(t);
+});
+
+function updateMetrics(thresh) {
+  if (valPreds.length === 0) return;
+  let tp = 0, fp = 0, tn = 0, fn = 0;
+  valLabels.forEach((yt, i) => {
+    const yp = valPreds[i] >= thresh ? 1 : 0;
+    if (yt === 1 && yp === 1) tp++;
+    if (yt === 0 && yp === 1) fp++;
+    if (yt === 0 && yp === 0) tn++;
+    if (yt === 1 && yp === 0) fn++;
+  });
+  const prec = tp / (tp + fp + 1e-6);
+  const rec = tp / (tp + fn + 1e-6);
+  const f1 = 2 * prec * rec / (prec + rec + 1e-6);
+
+  $('metrics-output').innerHTML = `
+    <div class="metric-card">Precision: ${(prec*100).toFixed(1)}%</div>
+    <div class="metric-card">Recall: ${(rec*100).toFixed(1)}%</div>
+    <div class="metric-card">F1: ${(f1*100).toFixed(1)}%</div>
+  `;
+
+  $('confusion-matrix').innerHTML = `
+    <table border="1" cellpadding="5">
+      <tr><th></th><th>Pred 0</th><th>Pred 1</th></tr>
+      <tr><th>True 0</th><td>${tn}</td><td>${fp}</td></tr>
+      <tr><th>True 1</th><td>${fn}</td><td>${tp}</td></tr>
+    </table>
+  `;
+}
+
+// --- Predict on Test ---
+$('predict-btn').addEventListener('click', () => {
+  const preds = model.predict(testX).arraySync().map(r => r[0]);
+  $('prediction-output').textContent = preds.slice(0, 10).map(p => p.toFixed(3)).join(", ") + "...";
+});
+
+// --- Export ---
+$('export-btn').addEventListener('click', () => {
+  const preds = model.predict(testX).arraySync().map(r => r[0]);
+  let csv = "PassengerId,Survived\n";
+  testData.forEach((r, i) => {
+    csv += `${r.PassengerId},${preds[i] >= 0.5 ? 1 : 0}\n`;
+  });
+  downloadCSV(csv, "submission.csv");
+});
+
+// --- Save Model ---
+$('save-model-btn').addEventListener('click', async () => {
+  await model.save('downloads://titanic-tfjs');
+});
+
+function downloadCSV(csv, name) {
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
