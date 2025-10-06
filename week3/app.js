@@ -1,42 +1,90 @@
-// app.js — Browser-based Titanic binary classifier with TensorFlow.js
+// app.js — Titanic Classifier with Enhanced Visualizations
 
 let trainData = [], testData = [];
 let xTrain, yTrain, xVal, yVal, testX;
 let featureNames = [];
 let model;
+let valPreds = [], valLabels = [];
 
-// --- Helpers ---
 const $ = id => document.getElementById(id);
 const setDisabled = (id, state) => { $(id).disabled = state; };
 
-// --- CSV Preview ---
-$('btnPreview').addEventListener('click', async () => {
+// --- CSV Loader ---
+$('load-data-btn').addEventListener('click', async () => {
   try {
-    const trainFile = $('trainFile').files[0];
-    const testFile = $('testFile').files[0];
-    if (!trainFile || !testFile) return alert('Please upload both train.csv and test.csv');
-    trainData = await parseCSV(trainFile);
-    testData = await parseCSV(testFile);
-    $('dataPreview').textContent = JSON.stringify(trainData.slice(0, 5), null, 2);
-    $('dataInfo').textContent = `Train rows: ${trainData.length}, Test rows: ${testData.length}`;
-    setDisabled('btnPreprocess', false);
-  } catch (err) {
-    alert('CSV load error: ' + err);
-  }
+    trainData = await loadCSV($('trainFile'));
+    testData = await loadCSV($('testFile'));
+    $('data-status').textContent = `Train: ${trainData.length} rows, Test: ${testData.length} rows`;
+    setDisabled('inspect-btn', false);
+  } catch (err) { alert("CSV load error: " + err); }
 });
 
-function parseCSV(file) {
+function loadCSV(input) {
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    if (!input.files[0]) return reject("No file chosen");
+    Papa.parse(input.files[0], {
       header: true, dynamicTyping: true, skipEmptyLines: true,
       complete: res => resolve(res.data), error: err => reject(err)
     });
   });
 }
 
-// --- Preprocessing ---
-$('btnPreprocess').addEventListener('click', () => {
-  const addFamily = $('addFamily').checked;
+// --- Inspect Step ---
+$('inspect-btn').addEventListener('click', () => {
+  $('data-preview').textContent = JSON.stringify(trainData.slice(0, 5), null, 2);
+
+  // Missing values
+  const cols = Object.keys(trainData[0]);
+  const missing = cols.map(c => ({
+    col: c,
+    missing: trainData.filter(r => r[c] === null || r[c] === "").length
+  }));
+  $('data-stats').textContent = JSON.stringify(missing, null, 2);
+
+  // Survival by Sex
+  const survBySex = {};
+  trainData.forEach(r => {
+    if (r.Survived != null) {
+      survBySex[r.Sex] = survBySex[r.Sex] || { surv: 0, total: 0 };
+      survBySex[r.Sex].total++;
+      if (r.Survived === 1) survBySex[r.Sex].surv++;
+    }
+  });
+  const sexValues = Object.keys(survBySex).map(k => ({
+    x: k,
+    y: survBySex[k].surv / survBySex[k].total
+  }));
+  tfvis.render.barchart({ name: 'Survival Rate by Sex', tab: 'Inspect' }, sexValues);
+
+  // Survival by Pclass
+  const survByPclass = {};
+  trainData.forEach(r => {
+    const cls = r.Pclass;
+    survByPclass[cls] = survByPclass[cls] || { surv: 0, total: 0 };
+    survByPclass[cls].total++;
+    if (r.Survived === 1) survByPclass[cls].surv++;
+  });
+  const pclassValues = Object.keys(survByPclass).map(k => ({
+    x: "Class " + k,
+    y: survByPclass[k].surv / survByPclass[k].total
+  }));
+  tfvis.render.barchart({ name: 'Survival Rate by Pclass', tab: 'Inspect' }, pclassValues);
+
+  // Age distribution by Survival
+  const ageSurvived = trainData.filter(r => r.Survived === 1 && r.Age != null).map(r => r.Age);
+  const ageDied = trainData.filter(r => r.Survived === 0 && r.Age != null).map(r => r.Age);
+  const histData = [
+    { values: ageSurvived, bins: 15, color: 'green', label: 'Survived' },
+    { values: ageDied, bins: 15, color: 'red', label: 'Died' }
+  ];
+  tfvis.render.histogram({ name: 'Age Distribution by Survival', tab: 'Inspect' }, histData);
+
+  setDisabled('preprocess-btn', false);
+});
+
+// --- Preprocess ---
+$('preprocess-btn').addEventListener('click', () => {
+  const addFamily = $('toggle-family').checked;
 
   const imputeMedian = (arr, key) => {
     const vals = arr.map(r => r[key]).filter(v => v != null);
@@ -82,60 +130,124 @@ $('btnPreprocess').addEventListener('click', () => {
   yVal = tf.tensor2d(Y.slice(split), [N - split, 1]);
   testX = tf.tensor2d(proc(testData));
 
-  $('preprocessOutput').textContent =
-    `Features: ${featureNames.join(', ')}\nTrain shape: ${xTrain.shape}`;
-  setDisabled('btnBuild', false);
+  $('preprocessing-output').textContent = `Features: ${featureNames.join(", ")}\nTrain shape: ${xTrain.shape}`;
+
+  // Correlation heatmap
+  const corr = tf.matMul(xTrain.transpose(), xTrain).div(xTrain.shape[0]).arraySync();
+  tfvis.render.heatmap(
+    { name: 'Feature Correlation Heatmap', tab: 'Preprocess' },
+    { values: corr, xTickLabels: featureNames, yTickLabels: featureNames }
+  );
+
+  setDisabled('create-model-btn', false);
 });
 
-// --- Build Model ---
-$('btnBuild').addEventListener('click', () => {
+// --- Model ---
+$('create-model-btn').addEventListener('click', () => {
   model = tf.sequential();
   model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [featureNames.length] }));
   model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
   model.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
-  model.summary();
-  $('modelSummary').textContent = 'Model built with 16 hidden units (ReLU) → 1 sigmoid output.';
-  setDisabled('btnTrain', false);
+  $('model-summary').textContent = "Model created with Dense(16, relu) → Dense(1, sigmoid).";
+  setDisabled('train-btn', false);
 });
 
-// --- Train Model ---
-$('btnTrain').addEventListener('click', async () => {
-  $('trainStatus').textContent = 'Training...';
-  const history = await model.fit(xTrain, yTrain, {
+// --- Train ---
+$('train-btn').addEventListener('click', async () => {
+  await model.fit(xTrain, yTrain, {
     epochs: 50, batchSize: 32, validationData: [xVal, yVal],
     callbacks: tfvis.show.fitCallbacks(
-      { name: 'Training Performance', tab: 'Training' },
+      { name: 'Training Progress', tab: 'Training' },
       ['loss', 'val_loss', 'acc', 'val_acc'], { callbacks: ['onEpochEnd'] })
   });
-  $('trainStatus').textContent = 'Training complete.';
-  setDisabled('btnPredict', false);
-  setDisabled('btnExport', false);
-  setDisabled('btnSaveModel', false);
+
+  valPreds = model.predict(xVal).arraySync().map(r => r[0]);
+  valLabels = yVal.arraySync().map(r => r[0]);
+
+  computeROC(valLabels, valPreds);
+  updateMetrics(0.5);
+
+  setDisabled('predict-btn', false);
+  setDisabled('export-btn', false);
+  setDisabled('save-model-btn', false);
 });
 
-// --- Predict ---
-$('btnPredict').addEventListener('click', () => {
-  const preds = model.predict(testX).arraySync().map(r => r[0]);
-  $('predictionOutput').textContent =
-    preds.slice(0, 10).map(p => p.toFixed(3)).join(', ') + ' ...';
+// --- ROC Curve ---
+function computeROC(yTrue, yProb) {
+  let thresholds = [];
+  for (let t = 0; t <= 1; t += 0.05) thresholds.push(t);
+
+  const roc = thresholds.map(t => {
+    let tp = 0, fp = 0, tn = 0, fn = 0;
+    yTrue.forEach((yt, i) => {
+      const yp = yProb[i] >= t ? 1 : 0;
+      if (yt === 1 && yp === 1) tp++;
+      if (yt === 0 && yp === 1) fp++;
+      if (yt === 0 && yp === 0) tn++;
+      if (yt === 1 && yp === 0) fn++;
+    });
+    const tpr = tp / (tp + fn + 1e-6);
+    const fpr = fp / (fp + tn + 1e-6);
+    return { x: fpr, y: tpr };
+  });
+  tfvis.render.scatterplot({ name: 'ROC Curve', tab: 'Metrics' }, { values: roc }, { xLabel: 'FPR', yLabel: 'TPR' });
+}
+
+// --- Threshold Metrics ---
+$('threshold-slider').addEventListener('input', e => {
+  const t = parseFloat(e.target.value);
+  $('threshold-value').textContent = t.toFixed(2);
+  updateMetrics(t);
 });
 
-// --- Export ---
-$('btnExport').addEventListener('click', () => {
+function updateMetrics(thresh) {
+  if (valPreds.length === 0) return;
+  let tp = 0, fp = 0, tn = 0, fn = 0;
+  valLabels.forEach((yt, i) => {
+    const yp = valPreds[i] >= thresh ? 1 : 0;
+    if (yt === 1 && yp === 1) tp++;
+    if (yt === 0 && yp === 1) fp++;
+    if (yt === 0 && yp === 0) tn++;
+    if (yt === 1 && yp === 0) fn++;
+  });
+  const prec = tp / (tp + fp + 1e-6);
+  const rec = tp / (tp + fn + 1e-6);
+  const f1 = 2 * prec * rec / (prec + rec + 1e-6);
+
+  $('metrics-output').innerHTML = `
+    <div class="metric-card">Precision: ${(prec*100).toFixed(1)}%</div>
+    <div class="metric-card">Recall: ${(rec*100).toFixed(1)}%</div>
+    <div class="metric-card">F1: ${(f1*100).toFixed(1)}%</div>
+  `;
+
+  $('confusion-matrix').innerHTML = `
+    <table border="1" cellpadding="5">
+      <tr><th></th><th>Pred 0</th><th>Pred 1</th></tr>
+      <tr><th>True 0</th><td>${tn}</td><td>${fp}</td></tr>
+      <tr><th>True 1</th><td>${fn}</td><td>${tp}</td></tr>
+    </table>
+  `;
+}
+
+// --- Predict & Export ---
+$('predict-btn').addEventListener('click', () => {
   const preds = model.predict(testX).arraySync().map(r => r[0]);
-  let csv = 'PassengerId,Survived\n';
+  $('prediction-output').textContent = preds.slice(0, 10).map(p => p.toFixed(3)).join(", ") + "...";
+});
+
+$('export-btn').addEventListener('click', () => {
+  const preds = model.predict(testX).arraySync().map(r => r[0]);
+  let csv = "PassengerId,Survived\n";
   testData.forEach((r, i) => {
     csv += `${r.PassengerId},${preds[i] >= 0.5 ? 1 : 0}\n`;
   });
-  downloadCSV(csv, 'submission.csv');
+  downloadCSV(csv, "submission.csv");
 });
 
-// --- Save Model ---
-$('btnSaveModel').addEventListener('click', async () => {
+$('save-model-btn').addEventListener('click', async () => {
   await model.save('downloads://titanic-tfjs');
 });
 
-// --- Download Helper ---
 function downloadCSV(csv, name) {
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
