@@ -1,13 +1,11 @@
-// app.js - Titanic Survival Classifier with ROC & Confusion Matrix
+// app.js — Titanic Classifier with Enhanced Visualizations
 
-// --- Globals ---
 let trainData = [], testData = [];
 let xTrain, yTrain, xVal, yVal, testX;
 let featureNames = [];
 let model;
 let valPreds = [], valLabels = [];
 
-// --- Helpers ---
 const $ = id => document.getElementById(id);
 const setDisabled = (id, state) => { $(id).disabled = state; };
 
@@ -31,7 +29,7 @@ function loadCSV(input) {
   });
 }
 
-// --- Inspect ---
+// --- Inspect Step ---
 $('inspect-btn').addEventListener('click', () => {
   $('data-preview').textContent = JSON.stringify(trainData.slice(0, 5), null, 2);
 
@@ -56,7 +54,30 @@ $('inspect-btn').addEventListener('click', () => {
     x: k,
     y: survBySex[k].surv / survBySex[k].total
   }));
-  tfvis.render.barchart({ name: 'Survival by Sex', tab: 'Inspect' }, sexValues);
+  tfvis.render.barchart({ name: 'Survival Rate by Sex', tab: 'Inspect' }, sexValues);
+
+  // Survival by Pclass
+  const survByPclass = {};
+  trainData.forEach(r => {
+    const cls = r.Pclass;
+    survByPclass[cls] = survByPclass[cls] || { surv: 0, total: 0 };
+    survByPclass[cls].total++;
+    if (r.Survived === 1) survByPclass[cls].surv++;
+  });
+  const pclassValues = Object.keys(survByPclass).map(k => ({
+    x: "Class " + k,
+    y: survByPclass[k].surv / survByPclass[k].total
+  }));
+  tfvis.render.barchart({ name: 'Survival Rate by Pclass', tab: 'Inspect' }, pclassValues);
+
+  // Age distribution by Survival
+  const ageSurvived = trainData.filter(r => r.Survived === 1 && r.Age != null).map(r => r.Age);
+  const ageDied = trainData.filter(r => r.Survived === 0 && r.Age != null).map(r => r.Age);
+  const histData = [
+    { values: ageSurvived, bins: 15, color: 'green', label: 'Survived' },
+    { values: ageDied, bins: 15, color: 'red', label: 'Died' }
+  ];
+  tfvis.render.histogram({ name: 'Age Distribution by Survival', tab: 'Inspect' }, histData);
 
   setDisabled('preprocess-btn', false);
 });
@@ -107,9 +128,17 @@ $('preprocess-btn').addEventListener('click', () => {
   yTrain = tf.tensor2d(Y.slice(0, split), [split, 1]);
   xVal = tf.tensor2d(X.slice(split));
   yVal = tf.tensor2d(Y.slice(split), [N - split, 1]);
-
   testX = tf.tensor2d(proc(testData));
+
   $('preprocessing-output').textContent = `Features: ${featureNames.join(", ")}\nTrain shape: ${xTrain.shape}`;
+
+  // Correlation heatmap
+  const corr = tf.matMul(xTrain.transpose(), xTrain).div(xTrain.shape[0]).arraySync();
+  tfvis.render.heatmap(
+    { name: 'Feature Correlation Heatmap', tab: 'Preprocess' },
+    { values: corr, xTickLabels: featureNames, yTickLabels: featureNames }
+  );
+
   setDisabled('create-model-btn', false);
 });
 
@@ -119,7 +148,7 @@ $('create-model-btn').addEventListener('click', () => {
   model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [featureNames.length] }));
   model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
   model.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
-  $('model-summary').textContent = "Model created.";
+  $('model-summary').textContent = "Model created with Dense(16, relu) → Dense(1, sigmoid).";
   setDisabled('train-btn', false);
 });
 
@@ -128,11 +157,10 @@ $('train-btn').addEventListener('click', async () => {
   await model.fit(xTrain, yTrain, {
     epochs: 50, batchSize: 32, validationData: [xVal, yVal],
     callbacks: tfvis.show.fitCallbacks(
-      { name: 'Training', tab: 'Training' },
+      { name: 'Training Progress', tab: 'Training' },
       ['loss', 'val_loss', 'acc', 'val_acc'], { callbacks: ['onEpochEnd'] })
   });
 
-  // Store validation predictions
   valPreds = model.predict(xVal).arraySync().map(r => r[0]);
   valLabels = yVal.arraySync().map(r => r[0]);
 
@@ -165,7 +193,7 @@ function computeROC(yTrue, yProb) {
   tfvis.render.scatterplot({ name: 'ROC Curve', tab: 'Metrics' }, { values: roc }, { xLabel: 'FPR', yLabel: 'TPR' });
 }
 
-// --- Metrics Update ---
+// --- Threshold Metrics ---
 $('threshold-slider').addEventListener('input', e => {
   const t = parseFloat(e.target.value);
   $('threshold-value').textContent = t.toFixed(2);
@@ -201,13 +229,12 @@ function updateMetrics(thresh) {
   `;
 }
 
-// --- Predict on Test ---
+// --- Predict & Export ---
 $('predict-btn').addEventListener('click', () => {
   const preds = model.predict(testX).arraySync().map(r => r[0]);
   $('prediction-output').textContent = preds.slice(0, 10).map(p => p.toFixed(3)).join(", ") + "...";
 });
 
-// --- Export ---
 $('export-btn').addEventListener('click', () => {
   const preds = model.predict(testX).arraySync().map(r => r[0]);
   let csv = "PassengerId,Survived\n";
@@ -217,7 +244,6 @@ $('export-btn').addEventListener('click', () => {
   downloadCSV(csv, "submission.csv");
 });
 
-// --- Save Model ---
 $('save-model-btn').addEventListener('click', async () => {
   await model.save('downloads://titanic-tfjs');
 });
