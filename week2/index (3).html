@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titanic Classifier - TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { margin: 5px; padding: 8px 15px; cursor: pointer; }
+        input[type="file"] { margin: 5px; }
+        table { border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .metrics-container { display: flex; flex-wrap: wrap; gap: 20px; }
+        .slider-container { margin: 10px 0; }
+        .hidden { display: none; }
+        @media (max-width: 768px) {
+            .metrics-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Titanic Survival Classifier</h1>
+    
+    <!-- Data Load Section -->
+    <section id="data-load">
+        <h2>1. Data Load</h2>
+        <input type="file" id="train-file" accept=".csv">
+        <input type="file" id="test-file" accept=".csv">
+        <button id="load-btn">Load & Inspect Data</button>
+        <div id="data-preview"></div>
+    </section>
+
+    <!-- Preprocessing Section -->
+    <section id="preprocessing">
+        <h2>2. Preprocessing</h2>
+        <button id="preprocess-btn">Preprocess Data</button>
+        <div id="preprocess-output"></div>
+    </section>
+
+    <!-- Model Section -->
+    <section id="model">
+        <h2>3. Model</h2>
+        <button id="build-model-btn">Build Model</button>
+        <div id="model-summary"></div>
+    </section>
+
+    <!-- Training Section -->
+    <section id="training">
+        <h2>4. Training</h2>
+        <button id="train-btn">Train Model</button>
+        <div id="training-progress"></div>
+    </section>
+
+    <!-- Metrics Section -->
+    <section id="metrics">
+        <h2>5. Metrics & Evaluation</h2>
+        <div class="slider-container">
+            <label>Classification Threshold: <span id="threshold-value">0.5</span></label>
+            <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="metrics-container">
+            <div id="confusion-matrix"></div>
+            <div id="performance-metrics"></div>
+        </div>
+        <div id="roc-curve"></div>
+    </section>
+
+    <!-- Prediction Section -->
+    <section id="prediction">
+        <h2>6. Prediction & Export</h2>
+        <button id="predict-btn">Predict on Test Data</button>
+        <button id="download-btn">Download Submission</button>
+        <button id="save-model-btn">Save Model</button>
+        <div id="prediction-results"></div>
+    </section>
+
+    <!-- Deployment Notes -->
+    <section id="deployment">
+        <h2>GitHub Pages Deployment</h2>
+        <p>To deploy this app on GitHub Pages:</p>
+        <ol>
+            <li>Create a new GitHub repository</li>
+            <li>Upload index.html and app.js to the repository</li>
+            <li>Enable GitHub Pages in repository settings (Settings > Pages)</li>
+            <li>Select branch (usually 'main') and root folder</li>
+            <li>Your app will be available at: https://[username].github.io/[repository-name]</li>
+        </ol>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
