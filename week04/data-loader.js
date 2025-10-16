@@ -1,5 +1,5 @@
 // data-loader.js
-// Handles CSV parsing, normalization, and dataset creation for stock prediction.
+// Handles CSV parsing, normalization, and dataset creation for CNN-based stock prediction.
 
 export default class DataLoader {
   constructor({ seqLen = 12, forecastHorizon = 3, testSplitPct = 0.2 } = {}) {
@@ -11,35 +11,42 @@ export default class DataLoader {
   async loadFile(file) {
     const text = await file.text();
     const rows = this.parseCSV(text);
+    if (!rows || rows.length === 0) throw new Error("CSV file is empty or invalid.");
     this.prepareData(rows);
   }
 
   parseCSV(text) {
     const lines = text.trim().split(/\r?\n/);
     const headers = lines[0].split(',').map(h => h.trim());
-    return lines.slice(1).map(line => {
-      const cols = line.split(',');
+    const requiredHeaders = ["Date", "Symbol", "Open", "Close"];
+    for (const h of requiredHeaders) {
+      if (!headers.includes(h)) throw new Error(`Missing column: ${h}`);
+    }
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',');
+      if (cols.length < headers.length) continue;
       const obj = {};
-      headers.forEach((h, i) => obj[h] = cols[i]);
-      return obj;
-    });
+      headers.forEach((h, idx) => obj[h] = cols[idx]);
+      data.push(obj);
+    }
+    return data;
   }
 
   prepareData(rows) {
     const symbols = [...new Set(rows.map(r => r.Symbol))].sort();
     const dates = [...new Set(rows.map(r => r.Date))].sort((a, b) => new Date(a) - new Date(b));
 
-    // Pivot data: per symbol {date -> {open, close}}
     const symbolData = {};
     for (const s of symbols) {
       symbolData[s] = {};
-      const subset = rows.filter(r => r.Symbol === s);
-      subset.forEach(r => {
+      rows.filter(r => r.Symbol === s).forEach(r => {
         symbolData[s][r.Date] = { open: +r.Open, close: +r.Close };
       });
     }
 
-    // Normalize each symbol individually (min-max)
+    // Normalize each stock individually
     const norm = {};
     for (const s of symbols) {
       const vals = Object.values(symbolData[s]);
@@ -50,40 +57,41 @@ export default class DataLoader {
       for (const d in symbolData[s]) {
         const v = symbolData[s][d];
         symbolData[s][d] = {
-          open: (v.open - min) / (max - min),
-          close: (v.close - min) / (max - min),
+          open: (v.open - min) / (max - min + 1e-9),
+          close: (v.close - min) / (max - min + 1e-9)
         };
       }
     }
 
-    const seqLen = this.seqLen;
-    const horizon = this.forecastHorizon;
     const X = [];
     const Y = [];
+    const seqLen = this.seqLen;
+    const horizon = this.forecastHorizon;
 
     for (let i = seqLen - 1; i < dates.length - horizon; i++) {
       const seqDates = dates.slice(i - seqLen + 1, i + 1);
-      const xRow = [];
-      for (const d of seqDates) {
-        const f = [];
+      const xSeq = seqDates.map(d => {
+        const features = [];
         for (const s of symbols) {
-          const data = symbolData[s][d];
-          if (!data) return;
-          f.push(data.open, data.close);
+          const v = symbolData[s][d];
+          if (!v) return null;
+          features.push(v.open, v.close);
         }
-        xRow.push(f);
-      }
+        return features;
+      });
+      if (xSeq.includes(null)) continue;
 
-      const yRow = [];
+      const ySeq = [];
       for (const s of symbols) {
         const base = symbolData[s][dates[i]].close;
         for (let h = 1; h <= horizon; h++) {
           const next = symbolData[s][dates[i + h]]?.close;
-          yRow.push(next > base ? 1 : 0);
+          ySeq.push(next > base ? 1 : 0);
         }
       }
-      X.push(xRow);
-      Y.push(yRow);
+
+      X.push(xSeq);
+      Y.push(ySeq);
     }
 
     const split = Math.floor(X.length * (1 - this.testSplitPct));
