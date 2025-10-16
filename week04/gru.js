@@ -1,5 +1,6 @@
-// gru.js — UPDATED (fixes CAUSAL padding issue in Conv1D)
-// CNN-based model for multi-stock binary up/down classification using TensorFlow.js
+// gru.js — FINAL FIXED VERSION (no causal padding anywhere)
+// Replaces all causal paddings with supported SAME mode.
+// Uses pure Conv1D layers that are 100% supported by TensorFlow.js in browser.
 
 import * as tf from 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js';
 
@@ -16,7 +17,7 @@ export default class CNNModel {
   build() {
     const model = tf.sequential();
 
-    // 1️⃣ Conv1D layers (use padding: 'same' to avoid unsupported causal padding)
+    // ✅ Safe Conv1D layers (no causal padding)
     model.add(tf.layers.conv1d({
       inputShape: [this.seqLen, this.numFeatures],
       filters: 64,
@@ -24,6 +25,8 @@ export default class CNNModel {
       activation: 'relu',
       padding: 'same'
     }));
+
+    model.add(tf.layers.batchNormalization());
     model.add(tf.layers.conv1d({
       filters: 64,
       kernelSize: 3,
@@ -31,13 +34,23 @@ export default class CNNModel {
       padding: 'same'
     }));
 
-    // 2️⃣ Global pooling + dense layers
+    model.add(tf.layers.batchNormalization());
+    model.add(tf.layers.maxPooling1d({ poolSize: 2 }));
+
+    // Another conv block
+    model.add(tf.layers.conv1d({
+      filters: 128,
+      kernelSize: 3,
+      activation: 'relu',
+      padding: 'same'
+    }));
+
     model.add(tf.layers.globalAveragePooling1d());
     model.add(tf.layers.dropout({ rate: 0.3 }));
     model.add(tf.layers.dense({ units: 128, activation: 'relu' }));
     model.add(tf.layers.dropout({ rate: 0.3 }));
 
-    // 3️⃣ Output layer: 10 stocks × 3 days = 30 binary outputs
+    // Output layer — 10 stocks × 3 days = 30 binary outputs
     const outUnits = this.nSymbols * this.horizon;
     model.add(tf.layers.dense({ units: outUnits, activation: 'sigmoid' }));
 
@@ -49,17 +62,19 @@ export default class CNNModel {
     });
 
     this.model = model;
-    console.log('✅ CNN model built:', model.summary());
+    console.log('✅ CNN model built successfully.');
+    model.summary();
   }
 
   async train(X_train, y_train, { epochs = 10, batchSize = 32, onEpoch }) {
-    if (!this.model) throw new Error('Model not built');
+    if (!this.model) throw new Error('Model not built yet.');
     const valSplit = 0.2;
+
     return await this.model.fit(X_train, y_train, {
       epochs,
       batchSize,
       validationSplit: valSplit,
-      shuffle: false,
+      shuffle: true,
       callbacks: {
         onEpochEnd: async (epoch, logs) => {
           if (onEpoch) onEpoch(epoch, logs);
@@ -70,7 +85,7 @@ export default class CNNModel {
   }
 
   async evaluate(X_test, y_test, symbols, horizon) {
-    if (!this.model) throw new Error('Model not built');
+    if (!this.model) throw new Error('Model not built yet.');
     const preds = this.model.predict(X_test);
     const yTrue = await y_test.array();
     const yPred = await preds.array();
