@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GRU Stock Predictor (TensorFlow.js)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin-left: 8px; }
+    #accuracyChart { max-width: 800px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Stock Prediction with GRU (TensorFlow.js)</h2>
+  <input type="file" id="csvFile" accept=".csv" />
+  <button id="btnLoad">Load CSV</button>
+  <button id="btnTrain" disabled>Train Model</button>
+  <div id="progress" style="margin-top:10px;font-weight:bold;">Idle</div>
+  <div id="accuracyChart"></div>
+
+  <!-- Important: load scripts after DOM -->
+  <script src="./data-loader.js"></script>
+  <script src="./gru.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
