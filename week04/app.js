@@ -1,88 +1,63 @@
-// app.js
-// Controls UI, file upload, training, and visualization
+// app.js — orchestrates data loading, training, evaluation, and visualization
 
-class StockApp {
-  constructor() {
-    window.addEventListener("DOMContentLoaded", () => this.init());
-  }
+import DataLoader from './data-loader.js';
+import CNNModel from './gru.js';
 
-  init() {
-    this.fileInput = document.getElementById("csvFile");
-    this.loadBtn = document.getElementById("btnLoad");
-    this.trainBtn = document.getElementById("btnTrain");
-    this.progress = document.getElementById("progress");
-    this.chartDiv = document.getElementById("accuracyChart");
+let loader, model, tensors;
 
-    this.loader = new DataLoader();
+const fileInput = document.getElementById('csv-file');
+const loadBtn = document.getElementById('btn-load');
+const trainBtn = document.getElementById('btn-train');
+const evalBtn = document.getElementById('btn-eval');
+const logDiv = document.getElementById('log');
+const chartCanvas = document.getElementById('chart').getContext('2d');
 
-    // FIX: ensure event handlers are correctly bound after DOM loaded
-    this.loadBtn.addEventListener("click", () => this.loadCsv());
-    this.trainBtn.addEventListener("click", () => this.train());
-  }
-
-  async loadCsv() {
-    try {
-      const file = this.fileInput.files[0];
-      if (!file) {
-        alert("Please select a CSV file first.");
-        return;
-      }
-      this.progress.innerText = "Loading CSV...";
-      await this.loader.parseCsvFile(file);
-      this.dataset = this.loader.buildSamples();
-      this.progress.innerText = `Loaded ${this.dataset.X_train.shape[0]} training samples.`;
-      this.trainBtn.disabled = false;
-    } catch (err) {
-      console.error("Error loading CSV:", err);
-      alert("Error loading CSV: " + err.message);
-      this.progress.innerText = "Error loading CSV";
-    }
-  }
-
-  async train() {
-    try {
-      const { X_train, y_train, X_test, y_test, symbols } = this.dataset;
-      const [seq, feat] = X_train.shape.slice(1);
-      const model = new GRUModel({ inputShape: [seq, feat], denseUnits: y_train.shape[1] });
-      model.build();
-
-      this.progress.innerText = "Training...";
-      await model.fit(X_train, y_train, {
-        epochs: 25,
-        batchSize: 32,
-        onEpoch: (e, logs) => {
-          this.progress.innerText = `Epoch ${e + 1}: loss=${logs.loss.toFixed(4)}, acc=${logs.binaryAccuracy.toFixed(4)}`;
-        },
-      });
-
-      this.progress.innerText = "Predicting...";
-      const preds = model.predict(X_test);
-      const accs = await model.computeAccuracy(preds, y_test, symbols);
-
-      this.showAccuracy(accs);
-      this.progress.innerText = "Training complete!";
-    } catch (err) {
-      console.error(err);
-      alert("Error during training: " + err.message);
-    }
-  }
-
-  showAccuracy(accs) {
-    const sorted = accs.sort((a, b) => b.accuracy - a.accuracy);
-    const labels = sorted.map(a => a.symbol);
-    const data = sorted.map(a => (a.accuracy * 100).toFixed(2));
-
-    this.chartDiv.innerHTML = `<canvas id="chart"></canvas>`;
-    const ctx = document.getElementById("chart").getContext("2d");
-    new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [{ label: "Accuracy %", data }],
-      },
-      options: { scales: { y: { beginAtZero: true, max: 100 } } },
-    });
-  }
+function log(msg) {
+  logDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + logDiv.innerHTML;
 }
 
-new StockApp();
+loadBtn.onclick = async () => {
+  const file = fileInput.files[0];
+  if (!file) return alert('Upload CSV first!');
+  loader = new DataLoader({});
+  await loader.loadFile(file);
+  tensors = loader.getTensors();
+  log(`Loaded ${tensors.symbols.length} symbols and ${tensors.X_train.shape[0]} samples`);
+};
+
+trainBtn.onclick = async () => {
+  const seqLen = tensors.seqLen;
+  const numFeatures = tensors.X_train.shape[2];
+  const nSymbols = tensors.symbols.length;
+  const horizon = tensors.forecastHorizon;
+  model = new CNNModel({ seqLen, numFeatures, nSymbols, horizon });
+  model.build();
+  log('Training...');
+  await model.train(tensors.X_train, tensors.y_train, {
+    epochs: 10,
+    onEpoch: (e, l) => log(`Epoch ${e + 1}: loss=${l.loss.toFixed(4)}`)
+  });
+  log('Training finished.');
+};
+
+evalBtn.onclick = async () => {
+  log('Evaluating...');
+  const results = await model.evaluate(tensors.X_test, tensors.y_test, tensors.symbols);
+  renderChart(results);
+  log('Evaluation complete.');
+};
+
+function renderChart(results) {
+  const sorted = results.sort((a, b) => b.accuracy - a.accuracy);
+  new Chart(chartCanvas, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(r => r.symbol),
+      datasets: [{
+        label: 'Accuracy',
+        data: sorted.map(r => r.accuracy * 100)
+      }]
+    },
+    options: { indexAxis: 'y', scales: { x: { min: 0, max: 100 } } }
+  });
+}
