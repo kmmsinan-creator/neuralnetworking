@@ -1,4 +1,4 @@
-// gru.js — CNN-based stock predictor (TensorFlow.js)
+// gru.js (actually CNN-based model using Conv1D in TensorFlow.js)
 
 export default class CNNModel {
   constructor({ seqLen, numFeatures, nSymbols, horizon, learningRate = 0.001 } = {}) {
@@ -12,10 +12,10 @@ export default class CNNModel {
 
   build() {
     const input = tf.input({ shape: [this.seqLen, this.numFeatures] });
-
     let x = tf.layers.conv1d({ filters: 64, kernelSize: 3, activation: 'relu', padding: 'causal' }).apply(input);
     x = tf.layers.conv1d({ filters: 128, kernelSize: 3, activation: 'relu', padding: 'causal' }).apply(x);
     x = tf.layers.globalAveragePooling1d().apply(x);
+    x = tf.layers.dropout({ rate: 0.2 }).apply(x);
     x = tf.layers.dense({ units: 128, activation: 'relu' }).apply(x);
     const output = tf.layers.dense({ units: this.outDim, activation: 'sigmoid' }).apply(x);
 
@@ -27,7 +27,7 @@ export default class CNNModel {
     });
   }
 
-  async train(X_train, y_train, { epochs = 20, batchSize = 32, onEpoch } = {}) {
+  async train(X_train, y_train, { epochs = 15, batchSize = 32, onEpoch } = {}) {
     await this.model.fit(X_train, y_train, {
       epochs,
       batchSize,
@@ -42,26 +42,22 @@ export default class CNNModel {
     });
   }
 
-  async evaluate(X_test, y_test, symbols) {
+  async evaluate(X_test, y_test, symbols, horizon) {
     const preds = this.model.predict(X_test);
     const y_pred = await preds.array();
     const y_true = await y_test.array();
     preds.dispose();
 
-    const nSym = symbols.length;
-    const horizon = this.horizon;
     const results = symbols.map(s => ({ symbol: s, correct: 0, total: 0 }));
-
-    y_true.forEach((t, i) => {
-      t.forEach((val, j) => {
-        const s = Math.floor(j / horizon);
-        const p = y_pred[i][j] > 0.5 ? 1 : 0;
-        if (p === val) results[s].correct++;
-        results[s].total++;
+    y_true.forEach((trueVals, i) => {
+      trueVals.forEach((val, j) => {
+        const sIdx = Math.floor(j / horizon);
+        const pred = y_pred[i][j] > 0.5 ? 1 : 0;
+        if (pred === val) results[sIdx].correct++;
+        results[sIdx].total++;
       });
     });
-
-    results.forEach(r => r.accuracy = r.correct / r.total);
+    results.forEach(r => (r.accuracy = r.correct / r.total));
     return results;
   }
 }
