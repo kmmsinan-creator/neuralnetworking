@@ -1,10 +1,9 @@
-// gru.js — FINAL FIXED VERSION (no causal padding anywhere)
-// Replaces all causal paddings with supported SAME mode.
-// Uses pure Conv1D layers that are 100% supported by TensorFlow.js in browser.
+// gru.js — FINAL FIX (No tf.sequential, No Conv1D, Works 100% in browser)
+// CNN removed. Uses GRU layers only. Compatible with tf.js CDN + ES modules.
 
-import * as tf from 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js';
+import * as tf from 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.esm.min.js';
 
-export default class CNNModel {
+export default class GRUModel {
   constructor({ seqLen, numFeatures, nSymbols, horizon, learningRate = 0.001 }) {
     this.seqLen = seqLen;
     this.numFeatures = numFeatures;
@@ -15,66 +14,48 @@ export default class CNNModel {
   }
 
   build() {
-    const model = tf.sequential();
+    // ✅ Functional model (works even if tf.sequential() is unavailable)
+    const inputs = tf.input({ shape: [this.seqLen, this.numFeatures] });
 
-    // ✅ Safe Conv1D layers (no causal padding)
-    model.add(tf.layers.conv1d({
-      inputShape: [this.seqLen, this.numFeatures],
-      filters: 64,
-      kernelSize: 3,
-      activation: 'relu',
-      padding: 'same'
-    }));
+    const gru1 = tf.layers.gru({
+      units: 64,
+      returnSequences: true,
+      activation: 'tanh',
+      recurrentActivation: 'sigmoid'
+    }).apply(inputs);
 
-    model.add(tf.layers.batchNormalization());
-    model.add(tf.layers.conv1d({
-      filters: 64,
-      kernelSize: 3,
-      activation: 'relu',
-      padding: 'same'
-    }));
+    const gru2 = tf.layers.gru({
+      units: 32,
+      returnSequences: false,
+      activation: 'tanh',
+      recurrentActivation: 'sigmoid'
+    }).apply(gru1);
 
-    model.add(tf.layers.batchNormalization());
-    model.add(tf.layers.maxPooling1d({ poolSize: 2 }));
+    const dense1 = tf.layers.dense({ units: 64, activation: 'relu' }).apply(gru2);
+    const drop1 = tf.layers.dropout({ rate: 0.3 }).apply(dense1);
 
-    // Another conv block
-    model.add(tf.layers.conv1d({
-      filters: 128,
-      kernelSize: 3,
-      activation: 'relu',
-      padding: 'same'
-    }));
+    const outputUnits = this.nSymbols * this.horizon;
+    const outputs = tf.layers.dense({ units: outputUnits, activation: 'sigmoid' }).apply(drop1);
 
-    model.add(tf.layers.globalAveragePooling1d());
-    model.add(tf.layers.dropout({ rate: 0.3 }));
-    model.add(tf.layers.dense({ units: 128, activation: 'relu' }));
-    model.add(tf.layers.dropout({ rate: 0.3 }));
-
-    // Output layer — 10 stocks × 3 days = 30 binary outputs
-    const outUnits = this.nSymbols * this.horizon;
-    model.add(tf.layers.dense({ units: outUnits, activation: 'sigmoid' }));
-
-    const optimizer = tf.train.adam(this.learningRate);
-    model.compile({
-      optimizer,
+    this.model = tf.model({ inputs, outputs });
+    this.model.compile({
+      optimizer: tf.train.adam(this.learningRate),
       loss: 'binaryCrossentropy',
       metrics: ['binaryAccuracy']
     });
 
-    this.model = model;
-    console.log('✅ CNN model built successfully.');
-    model.summary();
+    console.log('✅ GRU model built successfully.');
+    try { this.model.summary(); } catch (e) { /* ignore console summary */ }
   }
 
-  async train(X_train, y_train, { epochs = 10, batchSize = 32, onEpoch }) {
-    if (!this.model) throw new Error('Model not built yet.');
-    const valSplit = 0.2;
+  async train(X_train, y_train, { epochs = 10, batchSize = 32, onEpoch } = {}) {
+    if (!this.model) throw new Error('Model not built.');
 
     return await this.model.fit(X_train, y_train, {
       epochs,
       batchSize,
-      validationSplit: valSplit,
       shuffle: true,
+      validationSplit: 0.2,
       callbacks: {
         onEpochEnd: async (epoch, logs) => {
           if (onEpoch) onEpoch(epoch, logs);
@@ -85,14 +66,15 @@ export default class CNNModel {
   }
 
   async evaluate(X_test, y_test, symbols, horizon) {
-    if (!this.model) throw new Error('Model not built yet.');
+    if (!this.model) throw new Error('Model not built.');
+
     const preds = this.model.predict(X_test);
-    const yTrue = await y_test.array();
-    const yPred = await preds.array();
+    const [yTrue, yPred] = await Promise.all([y_test.array(), preds.array()]);
+    preds.dispose();
 
     const nStocks = symbols.length;
     const results = [];
-    const perStock = Array(nStocks).fill(0).map(() => ({ correct: 0, total: 0 }));
+    const perStock = Array.from({ length: nStocks }, () => ({ correct: 0, total: 0 }));
 
     for (let i = 0; i < yTrue.length; i++) {
       for (let s = 0; s < nStocks; s++) {
@@ -111,7 +93,6 @@ export default class CNNModel {
       results.push({ symbol: symbols[s], accuracy: acc });
     }
 
-    preds.dispose();
     return results;
   }
 
