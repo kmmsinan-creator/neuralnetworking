@@ -1,28 +1,52 @@
-<!DOCTYPE html>
+<!-- index.html -->
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GRU Stock Predictor (TensorFlow.js)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Browser Stock CNN Demo (TF.js)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    button { margin-left: 8px; }
-    #accuracyChart { max-width: 800px; margin-top: 20px; }
+    body { font-family: Arial, sans-serif; margin: 16px; color: #222; }
+    .controls { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+    #progress { max-height:200px; overflow:auto; border:1px solid #eee; padding:8px; background:#fafafa; }
+    #charts { margin-top:12px; display:flex; gap:12px; flex-direction:column; }
+    canvas { background:#fff; }
+    #timelines { margin-top:12px; }
+    .small { font-size:0.9em; color:#555; }
+    button { padding:8px 12px; cursor:pointer; border-radius:6px; border:1px solid #ccc; background:#fff; }
+    input[type="number"] { width:80px; padding:6px; border-radius:6px; }
   </style>
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <h2>Stock Prediction with GRU (TensorFlow.js)</h2>
-  <input type="file" id="csvFile" accept=".csv" />
-  <button id="btnLoad">Load CSV</button>
-  <button id="btnTrain" disabled>Train Model</button>
-  <div id="progress" style="margin-top:10px;font-weight:bold;">Idle</div>
-  <div id="accuracyChart"></div>
+  <h2>Stock Prediction Demo — Client-side (TF.js)</h2>
+  <div class="controls">
+    <label>CSV: <input id="csv-file" type="file" accept=".csv" /></label>
+    <button id="btn-load">Load CSV</button>
 
-  <!-- Important: load scripts after DOM -->
-  <script src="./data-loader.js"></script>
-  <script src="./gru.js"></script>
-  <script src="./app.js"></script>
+    <label>Epochs: <input id="epochs" type="number" value="12" min="1" /></label>
+    <label>Batch: <input id="batchSize" type="number" value="32" min="1" /></label>
+    <button id="btn-train">Train</button>
+    <button id="btn-predict">Evaluate / Predict</button>
+
+    <button id="btn-save">Save Model (localStorage)</button>
+    <button id="btn-loadmodel">Load Model (localStorage)</button>
+    <div style="margin-left:auto;">
+      <span id="status" class="small">Idle</span>
+    </div>
+  </div>
+
+  <div id="progress" aria-live="polite"></div>
+
+  <div id="charts">
+    <canvas id="barChart" width="800" height="320"></canvas>
+    <div id="timelines"></div>
+  </div>
+
+  <!-- App modules -->
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
