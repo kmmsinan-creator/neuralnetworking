@@ -1,6 +1,3 @@
-// app.js
-// Handles UI events, training flow, and visualization.
-
 class StockApp {
   constructor(){
     window.addEventListener("DOMContentLoaded",()=>this.init());
@@ -16,7 +13,6 @@ class StockApp {
     this.loader=new DataLoader();
     this.loadBtn.addEventListener("click",()=>this.loadCsv());
     this.trainBtn.addEventListener("click",()=>this.train());
-    console.log("App initialized; waiting for CSV.");
   }
 
   async loadCsv(){
@@ -28,9 +24,7 @@ class StockApp {
       this.dataset=this.loader.buildSamples();
       this.progress.innerText=`Loaded ${this.dataset.X_train.shape[0]} samples`;
       this.trainBtn.disabled=false;
-      console.log("CSV loaded successfully");
     }catch(e){
-      console.error(e);
       alert("Error loading CSV: "+e.message);
       this.progress.innerText="Error loading CSV";
     }
@@ -41,19 +35,20 @@ class StockApp {
     const [seq,feat]=X_train.shape.slice(1);
     const model=new GRUModel({inputShape:[seq,feat],outputSize:y_train.shape[1]});
     model.build();
-    this.progress.innerText="Training...";
+
+    this.progress.innerText="Training model...";
     await model.fit(X_train,y_train,{
-      epochs:60,batchSize:16,
+      epochs:40,batchSize:16,
       onEpoch:(e,logs)=>{
-        this.progress.innerText=`Epoch ${e+1}: loss=${logs.loss.toFixed(4)}, acc=${logs.binaryAccuracy.toFixed(4)}`;
+        this.progress.innerText=`Epoch ${e+1}/40\nLoss=${logs.loss.toFixed(4)} | Acc=${(logs.binaryAccuracy*100).toFixed(2)}%`;
       }
     });
 
-    this.progress.innerText="Evaluating...";
+    this.progress.innerText+="\nEvaluating...";
     const preds=model.predict(X_test);
     const accs=await model.computeAccuracy(preds,y_test,symbols);
     this.showAccuracy(accs);
-    this.progress.innerText="Done!";
+    this.progress.innerText+="\n✅ Done!";
   }
 
   showAccuracy(accs){
