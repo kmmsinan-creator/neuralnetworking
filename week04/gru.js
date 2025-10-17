@@ -1,102 +1,72 @@
-// gru.js — FINAL FIX (No tf.sequential, No Conv1D, Works 100% in browser)
-// CNN removed. Uses GRU layers only. Compatible with tf.js CDN + ES modules.
+// gru.js
+// GRU network with dropout, regularization, and learning rate scheduling
 
-import * as tf from 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.esm.min.js';
-
-export default class GRUModel {
-  constructor({ seqLen, numFeatures, nSymbols, horizon, learningRate = 0.001 }) {
-    this.seqLen = seqLen;
-    this.numFeatures = numFeatures;
-    this.nSymbols = nSymbols;
-    this.horizon = horizon;
+class GRUModel {
+  constructor({inputShape=[12,30],outputSize=30,learningRate=0.001}={}) {
+    this.inputShape = inputShape;
+    this.outputSize = outputSize;
     this.learningRate = learningRate;
-    this.model = null;
   }
 
   build() {
-    // ✅ Functional model (works even if tf.sequential() is unavailable)
-    const inputs = tf.input({ shape: [this.seqLen, this.numFeatures] });
+    const l2 = tf.regularizers.l2({l2: 1e-4});
+    const inp = tf.input({shape: this.inputShape});
 
-    const gru1 = tf.layers.gru({
-      units: 64,
-      returnSequences: true,
-      activation: 'tanh',
-      recurrentActivation: 'sigmoid'
-    }).apply(inputs);
+    let x = tf.layers.gru({units:128,returnSequences:true,
+                           kernelRegularizer:l2,recurrentRegularizer:l2}).apply(inp);
+    x = tf.layers.dropout({rate:0.3}).apply(x);
+    x = tf.layers.gru({units:64,returnSequences:true,
+                       kernelRegularizer:l2,recurrentRegularizer:l2}).apply(x);
+    x = tf.layers.dropout({rate:0.3}).apply(x);
+    x = tf.layers.gru({units:32,
+                       kernelRegularizer:l2,recurrentRegularizer:l2}).apply(x);
 
-    const gru2 = tf.layers.gru({
-      units: 32,
-      returnSequences: false,
-      activation: 'tanh',
-      recurrentActivation: 'sigmoid'
-    }).apply(gru1);
+    x = tf.layers.dense({units:64,activation:"relu",kernelRegularizer:l2}).apply(x);
+    x = tf.layers.dropout({rate:0.2}).apply(x);
+    const out = tf.layers.dense({units:this.outputSize,activation:"sigmoid"}).apply(x);
 
-    const dense1 = tf.layers.dense({ units: 64, activation: 'relu' }).apply(gru2);
-    const drop1 = tf.layers.dropout({ rate: 0.3 }).apply(dense1);
-
-    const outputUnits = this.nSymbols * this.horizon;
-    const outputs = tf.layers.dense({ units: outputUnits, activation: 'sigmoid' }).apply(drop1);
-
-    this.model = tf.model({ inputs, outputs });
-    this.model.compile({
-      optimizer: tf.train.adam(this.learningRate),
-      loss: 'binaryCrossentropy',
-      metrics: ['binaryAccuracy']
-    });
-
-    console.log('✅ GRU model built successfully.');
-    try { this.model.summary(); } catch (e) { /* ignore console summary */ }
+    this.model = tf.model({inputs:inp,outputs:out});
+    const opt = tf.train.adam(this.learningRate);
+    this.model.compile({optimizer:opt,loss:"binaryCrossentropy",metrics:["binaryAccuracy"]});
   }
 
-  async train(X_train, y_train, { epochs = 10, batchSize = 32, onEpoch } = {}) {
-    if (!this.model) throw new Error('Model not built.');
+  async fit(X_train,y_train,{epochs=60,batchSize=16,onEpoch}={}) {
+    if (!this.model) this.build();
 
-    return await this.model.fit(X_train, y_train, {
-      epochs,
-      batchSize,
-      shuffle: true,
-      validationSplit: 0.2,
-      callbacks: {
-        onEpochEnd: async (epoch, logs) => {
-          if (onEpoch) onEpoch(epoch, logs);
-          await tf.nextFrame();
+    const cb = {
+      onEpochEnd: (epoch, logs) => {
+        onEpoch && onEpoch(epoch, logs);
+        if ((epoch+1)%15===0 && logs.binaryAccuracy < 0.7) {
+          const oldLR = this.model.optimizer.learningRate;
+          const newLR = oldLR.mul(tf.scalar(0.5));
+          this.model.optimizer.learningRate = newLR;
+          console.log(`Lowered LR to ${newLR.dataSync()[0].toFixed(6)}`);
         }
       }
+    };
+
+    return await this.model.fit(X_train,y_train,{
+      epochs,batchSize,shuffle:true,validationSplit:0.1,callbacks:cb
     });
   }
 
-  async evaluate(X_test, y_test, symbols, horizon) {
-    if (!this.model) throw new Error('Model not built.');
+  predict(X){return this.model.predict(X);}
 
-    const preds = this.model.predict(X_test);
-    const [yTrue, yPred] = await Promise.all([y_test.array(), preds.array()]);
-    preds.dispose();
-
-    const nStocks = symbols.length;
-    const results = [];
-    const perStock = Array.from({ length: nStocks }, () => ({ correct: 0, total: 0 }));
-
-    for (let i = 0; i < yTrue.length; i++) {
-      for (let s = 0; s < nStocks; s++) {
-        for (let h = 0; h < horizon; h++) {
-          const idx = s * horizon + h;
-          const trueVal = yTrue[i][idx] >= 0.5 ? 1 : 0;
-          const predVal = yPred[i][idx] >= 0.5 ? 1 : 0;
-          if (trueVal === predVal) perStock[s].correct++;
-          perStock[s].total++;
+  async computeAccuracy(preds,yTrue,symbols){
+    const p=await preds.array(), y=await yTrue.array();
+    const S=symbols.length, H=p[0].length/S;
+    const acc=symbols.map(()=>({c:0,t:0}));
+    for(let i=0;i<p.length;i++){
+      for(let s=0;s<S;s++){
+        for(let h=0;h<H;h++){
+          const idx=s+h*S;
+          const pred=p[i][idx]>=0.5?1:0;
+          const truth=y[i][idx];
+          if(pred===truth) acc[s].c++;
+          acc[s].t++;
         }
       }
     }
-
-    for (let s = 0; s < nStocks; s++) {
-      const acc = perStock[s].correct / perStock[s].total;
-      results.push({ symbol: symbols[s], accuracy: acc });
-    }
-
-    return results;
-  }
-
-  dispose() {
-    if (this.model) this.model.dispose();
+    return symbols.map((sym,i)=>({symbol:sym,accuracy:acc[i].c/acc[i].t}));
   }
 }
