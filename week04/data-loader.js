@@ -1,116 +1,97 @@
 // data-loader.js
-// Handles CSV parsing, normalization, and dataset creation for CNN-based stock prediction.
+// Loads CSV, normalizes data, and builds sliding-window tensors.
 
-export default class DataLoader {
-  constructor({ seqLen = 12, forecastHorizon = 3, testSplitPct = 0.2 } = {}) {
-    this.seqLen = seqLen;
-    this.forecastHorizon = forecastHorizon;
-    this.testSplitPct = testSplitPct;
+class DataLoader {
+  constructor({ sequenceLength = 12, predictHorizon = 3, testSplit = 0.2 } = {}) {
+    this.sequenceLength = sequenceLength;
+    this.predictHorizon = predictHorizon;
+    this.testSplit = testSplit;
   }
 
-  async loadFile(file) {
+  async parseCsvFile(file) {
     const text = await file.text();
-    const rows = this.parseCSV(text);
-    if (!rows || rows.length === 0) throw new Error("CSV file is empty or invalid.");
-    this.prepareData(rows);
+    this.parseCsvText(text);
   }
 
-  parseCSV(text) {
-    const lines = text.trim().split(/\r?\n/);
-    const headers = lines[0].split(',').map(h => h.trim());
-    const requiredHeaders = ["Date", "Symbol", "Open", "Close"];
-    for (const h of requiredHeaders) {
-      if (!headers.includes(h)) throw new Error(`Missing column: ${h}`);
-    }
-
-    const data = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',');
-      if (cols.length < headers.length) continue;
-      const obj = {};
-      headers.forEach((h, idx) => obj[h] = cols[idx]);
-      data.push(obj);
-    }
-    return data;
-  }
-
-  prepareData(rows) {
-    const symbols = [...new Set(rows.map(r => r.Symbol))].sort();
-    const dates = [...new Set(rows.map(r => r.Date))].sort((a, b) => new Date(a) - new Date(b));
-
-    const symbolData = {};
-    for (const s of symbols) {
-      symbolData[s] = {};
-      rows.filter(r => r.Symbol === s).forEach(r => {
-        symbolData[s][r.Date] = { open: +r.Open, close: +r.Close };
-      });
-    }
-
-    // Normalize each stock individually
-    const norm = {};
-    for (const s of symbols) {
-      const vals = Object.values(symbolData[s]);
-      const all = vals.flatMap(v => [v.open, v.close]);
-      const min = Math.min(...all);
-      const max = Math.max(...all);
-      norm[s] = { min, max };
-      for (const d in symbolData[s]) {
-        const v = symbolData[s][d];
-        symbolData[s][d] = {
-          open: (v.open - min) / (max - min + 1e-9),
-          close: (v.close - min) / (max - min + 1e-9)
-        };
-      }
-    }
-
-    const X = [];
-    const Y = [];
-    const seqLen = this.seqLen;
-    const horizon = this.forecastHorizon;
-
-    for (let i = seqLen - 1; i < dates.length - horizon; i++) {
-      const seqDates = dates.slice(i - seqLen + 1, i + 1);
-      const xSeq = seqDates.map(d => {
-        const features = [];
-        for (const s of symbols) {
-          const v = symbolData[s][d];
-          if (!v) return null;
-          features.push(v.open, v.close);
-        }
-        return features;
-      });
-      if (xSeq.includes(null)) continue;
-
-      const ySeq = [];
-      for (const s of symbols) {
-        const base = symbolData[s][dates[i]].close;
-        for (let h = 1; h <= horizon; h++) {
-          const next = symbolData[s][dates[i + h]]?.close;
-          ySeq.push(next > base ? 1 : 0);
-        }
-      }
-
-      X.push(xSeq);
-      Y.push(ySeq);
-    }
-
-    const split = Math.floor(X.length * (1 - this.testSplitPct));
-    this.symbols = symbols;
-    this.X_train = tf.tensor(X.slice(0, split));
-    this.y_train = tf.tensor(Y.slice(0, split));
-    this.X_test = tf.tensor(X.slice(split));
-    this.y_test = tf.tensor(Y.slice(split));
-  }
-
-  getTensors() {
-    return {
-      X_train: this.X_train,
-      y_train: this.y_train,
-      X_test: this.X_test,
-      y_test: this.y_test,
-      symbols: this.symbols,
-      seqLen: this.seqLen,
-      forecastHorizon: this.forecastHorizon
+  parseCsvText(csvText) {
+    const lines = csvText.trim().split(/\r?\n/);
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+    const idx = {
+      date: headers.indexOf("date"),
+      symbol: headers.indexOf("symbol"),
+      open: headers.indexOf("open"),
+      close: headers.indexOf("close"),
     };
+    if (Object.values(idx).some(v => v < 0)) throw new Error("Missing required columns");
+
+    const rows = lines.slice(1).map(l => l.split(","));
+    const data = {};
+    for (const r of rows) {
+      const date = r[idx.date];
+      const sym = r[idx.symbol];
+      const open = parseFloat(r[idx.open]);
+      const close = parseFloat(r[idx.close]);
+      if (!data[sym]) data[sym] = [];
+      data[sym].push({ date, open, close });
+    }
+
+    // sort by date
+    Object.keys(data).forEach(s => data[s].sort((a,b)=>new Date(a.date)-new Date(b.date)));
+    this.symbols = Object.keys(data).slice(0,10);
+    this.dates = data[this.symbols[0]].map(d=>d.date);
+    this.dataBySymbol = data;
+
+    // normalize
+    this.normalizers = {};
+    for (const s of this.symbols) {
+      const opens = data[s].map(r=>r.open);
+      const closes = data[s].map(r=>r.close);
+      this.normalizers[s] = {
+        oMin: Math.min(...opens), oMax: Math.max(...opens),
+        cMin: Math.min(...closes), cMax: Math.max(...closes)
+      };
+    }
+  }
+
+  buildSamples() {
+    const seq = this.sequenceLength, H = this.predictHorizon, S = this.symbols.length;
+    const N = this.dates.length;
+    const X=[], Y=[];
+
+    for(let t=seq-1; t<N-H; t++){
+      const input=[];
+      for(let k=t-seq+1;k<=t;k++){
+        const feats=[];
+        for(const s of this.symbols){
+          const {open,close}=this.dataBySymbol[s][k];
+          const n=this.normalizers[s];
+          const o=(open-n.oMin)/(n.oMax-n.oMin+1e-6);
+          const c=(close-n.cMin)/(n.cMax-n.cMin+1e-6);
+          const prevClose = k>0 ? this.dataBySymbol[s][k-1].close : close;
+          const ret = (close - prevClose) / (prevClose + 1e-6);
+          const r = Math.max(-1, Math.min(1, ret*5)); // scaled return
+          feats.push(o, c, r);
+        }
+        input.push(feats);
+      }
+
+      const base=this.symbols.map(s=>this.dataBySymbol[s][t].close);
+      const labels=[];
+      for(let h=1;h<=H;h++){
+        for(let s=0;s<S;s++){
+          const fut=this.dataBySymbol[this.symbols[s]][t+h].close;
+          labels.push(fut>base[s]?1:0);
+        }
+      }
+      X.push(input);
+      Y.push(labels);
+    }
+
+    const split=Math.floor(X.length*(1-this.testSplit));
+    const X_train=tf.tensor3d(X.slice(0,split));
+    const y_train=tf.tensor2d(Y.slice(0,split));
+    const X_test=tf.tensor3d(X.slice(split));
+    const y_test=tf.tensor2d(Y.slice(split));
+    return {X_train,y_train,X_test,y_test,symbols:this.symbols};
   }
 }
