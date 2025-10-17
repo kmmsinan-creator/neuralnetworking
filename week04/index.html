@@ -2,30 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Stock Prediction Demo (CNN + TensorFlow.js)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRU Stock Predictor (TensorFlow.js)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Load TensorFlow.js and Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    button { margin: 5px; padding: 8px 12px; cursor: pointer; }
-    #log { border: 1px solid #ccc; height: 200px; overflow-y: auto; padding: 10px; background: #f9f9f9; }
-    canvas { margin-top: 15px; }
+    body { font-family:sans-serif; padding:20px; }
+    button { margin:5px; padding:8px 14px; cursor:pointer; }
+    #accuracyChart { max-width:800px; margin-top:20px; }
+    #progress { font-weight:bold; margin-top:10px; }
   </style>
 </head>
 <body>
-  <h2>📈 Stock Prediction (CNN, TensorFlow.js)</h2>
-  <input type="file" id="csv-file" accept=".csv" />
-  <button id="btn-load">Load CSV</button>
-  <button id="btn-train">Train Model</button>
-  <button id="btn-eval">Evaluate</button>
+  <h2>Stock Prediction with GRU (TensorFlow.js)</h2>
 
-  <h3>Logs</h3>
-  <div id="log"></div>
+  <input type="file" id="csvFile" accept=".csv" />
+  <button id="btnLoad">Load CSV</button>
+  <button id="btnTrain" disabled>Train Model</button>
 
-  <h3>Accuracy by Stock</h3>
-  <canvas id="chart" width="800" height="400"></canvas>
+  <div id="progress">Idle</div>
+  <div id="accuracyChart"></div>
 
-  <script type="module" src="./app.js"></script>
+  <!-- Load JS modules -->
+  <script src="./data-loader.js"></script>
+  <script src="./gru.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
