@@ -1,28 +1,29 @@
-<!DOCTYPE html>
+<!-- index.html -->
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GRU Stock Predictor (TensorFlow.js)</title>
+  <meta charset="utf-8" />
+  <title>Stock Prediction with GRU (TensorFlow.js)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Load TF.js and Chart.js globally (scripts must be before the non-module JS files) -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family:sans-serif; padding:20px; }
-    button { margin:5px; padding:8px 14px; cursor:pointer; }
-    #accuracyChart { max-width:800px; margin-top:20px; }
-    #progress { font-weight:bold; margin-top:10px; white-space: pre-line; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 18px; }
+    input, button { margin-right: 8px; padding: 6px 10px; }
+    #accuracyChart { width:100%; max-width:1000px; margin-top:18px; }
+    #progress { margin-top:12px; font-weight:700; white-space: pre-line; }
   </style>
 </head>
 <body>
-  <h2>Stock Prediction with GRU (TensorFlow.js)</h2>
-
-  <input type="file" id="csvFile" accept=".csv" />
+  <h1>Stock Prediction with GRU (TensorFlow.js)</h1>
+  <input id="csvFile" type="file" accept=".csv" />
   <button id="btnLoad">Load CSV</button>
   <button id="btnTrain" disabled>Train Model</button>
-
   <div id="progress">Idle</div>
   <div id="accuracyChart"></div>
 
+  <!-- App scripts (non-module, global objects exposed) -->
   <script src="./data-loader.js"></script>
   <script src="./gru.js"></script>
   <script src="./app.js"></script>
