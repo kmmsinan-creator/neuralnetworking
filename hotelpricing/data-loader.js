@@ -15,18 +15,21 @@ document.getElementById("loadButton").addEventListener("click", function () {
   Papa.parse(uploadedFile, {
     header: true,
     dynamicTyping: true,
+    skipEmptyLines: true,
     complete: function (results) {
-      const data = results.data.filter(row => Object.keys(row).length > 1);
+      const data = results.data;
       console.log("✅ CSV Loaded:", data.slice(0, 5));
 
       window.uploadedData = data;
 
-      if (data[0].adr) {
-        visualizeEDA(data);
-      }
-      if (data[0].predicted_adr) {
-        visualizeGRU(data);
-      }
+      // Visualize EDA if ADR column exists
+      if (data[0].adr && typeof visualizeEDA === "function") visualizeEDA(data);
+
+      // Visualize GRU if predicted_adr exists
+      if (data[0].predicted_adr && typeof visualizeGRU === "function") visualizeGRU(data);
+
+      // Visualize correlation heatmap
+      if (typeof visualizeCorrelation === "function") visualizeCorrelation(data);
     },
   });
 });
