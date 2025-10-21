@@ -11,6 +11,7 @@
   <!-- JS Libraries -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <header>
@@ -18,27 +19,33 @@
     <p>Demand Forecasting Using GRU Neural Network</p>
   </header>
 
+  <!-- Upload Section -->
   <section id="upload-section">
     <h2>📁 Upload Your CSV Data</h2>
     <input type="file" id="csvFile" accept=".csv" />
+    <button id="loadButton">📊 Load & Visualize Data</button>
     <p>Upload <b>hotel_bookings.csv</b> or <b>gru_forecast.csv</b> to visualize EDA and predictions.</p>
   </section>
 
+  <!-- EDA Section -->
   <section id="eda">
     <h2>📊 Exploratory Data Analysis (EDA)</h2>
     <div id="edaPlots">
       <div id="adrPlot"></div>
       <div id="monthPlot"></div>
       <div id="cancelPlot"></div>
+      <div id="missingPlot"></div>
     </div>
   </section>
 
+  <!-- GRU Model Section -->
   <section id="model">
     <h2>🧠 GRU Model Overview</h2>
     <div id="modelInfo"></div>
     <div id="gruChart"></div>
   </section>
 
+  <!-- Business Insights -->
   <section id="insights">
     <h2>💡 Business Insights</h2>
     <ul>
@@ -46,13 +53,14 @@
       <li>Forecasting helps manage demand seasonality effectively.</li>
       <li>Reduces cancellations through proactive inventory planning.</li>
     </ul>
+    <button id="downloadReport">📄 Download EDA Report (PDF)</button>
   </section>
 
   <footer>
     © 2025 | Created by [Your Name] | Hotel Demand Forecasting Dashboard
   </footer>
 
-  <!-- JS Scripts -->
+  <!-- Scripts -->
   <script src="data-loader.js"></script>
   <script src="script.js"></script>
   <script src="gru.js"></script>
