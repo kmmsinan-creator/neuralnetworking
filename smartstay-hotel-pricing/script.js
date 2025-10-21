@@ -1,5 +1,7 @@
 // Main Application Logic
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("🚀 Application initialized");
+    
     // Initialize components
     const dataLoader = new DataLoader();
     const gruModel = new GRUModel();
@@ -7,8 +9,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const fileInput = document.getElementById('fileInput');
     const uploadStatus = document.getElementById('uploadStatus');
+    const analyzeBtn = document.getElementById('analyzeBtn');
     const edaVisuals = document.getElementById('edaVisuals');
     const dataStats = document.getElementById('dataStats');
+    const modelSection = document.getElementById('modelSection');
+    const prototypeSection = document.getElementById('prototypeSection');
+    const innovationSection = document.getElementById('innovationSection');
     const predictBtn = document.getElementById('predictBtn');
     
     // Charts
@@ -20,34 +26,63 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!file) return;
 
         uploadStatus.textContent = '📊 Analyzing dataset...';
-        uploadStatus.className = '';
+        uploadStatus.className = 'upload-status loading';
 
         try {
             await dataLoader.loadFile(file);
             
             uploadStatus.textContent = `✅ Dataset loaded successfully! ${dataLoader.stats.totalRows.toLocaleString()} records analyzed`;
-            uploadStatus.className = 'success';
+            uploadStatus.className = 'upload-status success';
             
-            // Show EDA section
-            edaVisuals.style.display = 'block';
-            
-            // Update statistics
-            dataStats.innerHTML = dataLoader.getStatsHTML();
-            
-            // Create EDA visualizations
-            createEDAVisualizations();
-            
-            console.log('EDA completed:', dataLoader.analysis);
+            console.log('Dataset loaded:', dataLoader.stats);
 
         } catch (error) {
             uploadStatus.textContent = `❌ Error: ${error.message}`;
-            uploadStatus.className = 'error';
+            uploadStatus.className = 'upload-status error';
             console.error('File processing error:', error);
         }
     });
 
+    // Analyze Button Handler
+    analyzeBtn.addEventListener('click', function() {
+        if (!dataLoader.dataset) {
+            uploadStatus.textContent = '❌ Please upload a dataset first';
+            uploadStatus.className = 'upload-status error';
+            return;
+        }
+
+        console.log("📈 Starting EDA analysis...");
+        
+        // Show EDA section
+        edaVisuals.style.display = 'block';
+        
+        // Update statistics
+        dataStats.innerHTML = dataLoader.getStatsHTML();
+        
+        // Create EDA visualizations
+        createEDAVisualizations();
+        
+        // Show other sections
+        modelSection.style.display = 'block';
+        prototypeSection.style.display = 'block';
+        innovationSection.style.display = 'block';
+        
+        // Scroll to results
+        edaVisuals.scrollIntoView({ behavior: 'smooth' });
+        
+        console.log('✅ EDA completed');
+    });
+
     // Create EDA Visualizations
     function createEDAVisualizations() {
+        console.log("Creating EDA charts...");
+        
+        // Destroy existing charts if they exist
+        if (distributionChart) distributionChart.destroy();
+        if (seasonalChart) seasonalChart.destroy();
+        if (missingValuesChart) missingValuesChart.destroy();
+        if (leadTimeChart) leadTimeChart.destroy();
+
         createDistributionChart();
         createSeasonalChart();
         createMissingValuesChart();
@@ -63,15 +98,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Average Values',
                     data: [45, 3.2, 2.1, 120, 65],
-                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
                     borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    title: { display: true, text: 'Key Variables Distribution' }
+                    title: { 
+                        display: true, 
+                        text: 'Key Variables Distribution'
+                    }
                 }
             }
         });
@@ -95,7 +145,16 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 plugins: {
-                    title: { display: true, text: 'Seasonal Demand Pattern' }
+                    title: { 
+                        display: true, 
+                        text: 'Seasonal Demand Pattern'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
                 }
             }
         });
@@ -116,7 +175,10 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 plugins: {
-                    title: { display: true, text: 'Data Completeness' },
+                    title: { 
+                        display: true, 
+                        text: 'Data Completeness'
+                    },
                     legend: { position: 'bottom' }
                 }
             }
@@ -141,11 +203,19 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 plugins: {
-                    title: { display: true, text: 'Lead Time Impact on Occupancy' }
+                    title: { 
+                        display: true, 
+                        text: 'Lead Time Impact on Occupancy'
+                    }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Lead Time (days)' } },
-                    y: { title: { display: true, text: 'Occupancy (%)' } }
+                    x: { 
+                        title: { display: true, text: 'Lead Time (days)' } 
+                    },
+                    y: { 
+                        title: { display: true, text: 'Occupancy (%)' },
+                        beginAtZero: true
+                    }
                 }
             }
         });
@@ -163,17 +233,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Prediction Handler
     predictBtn.addEventListener('click', function() {
         if (!dataLoader.dataset) {
-            alert('Please upload a dataset first to enable predictions.');
+            alert('Please upload and analyze a dataset first.');
             return;
         }
 
+        console.log("🧠 Running GRU prediction...");
+        
         // Gather inputs
         const features = {
             basePrice: parseInt(document.getElementById('basePrice').value),
             currentOccupancy: parseInt(document.getElementById('currentOccupancy').value),
             season: document.getElementById('season').value,
             isHoliday: document.getElementById('isHoliday').checked,
-            leadTime: 30, // Default from dataset analysis
+            leadTime: 30,
             daysAhead: parseInt(document.getElementById('daysAhead').value)
         };
 
@@ -189,10 +261,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePredictionResults(prediction, priceRecommendation, revenueImpact, features);
         updateFeatureImpacts(prediction.featureImpacts);
         createForecastChart(prediction, features.daysAhead);
+        
+        console.log("✅ Prediction completed");
     });
 
     function calculateOptimalPrice(basePrice, occupancy) {
-        // Advanced pricing logic based on occupancy
         if (occupancy > 0.75) {
             return basePrice * 1.4; // Premium pricing
         } else if (occupancy > 0.55) {
@@ -225,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('expectedRevenue').textContent = '$' + 
             (revenueImpact.change + (features.basePrice * 100)).toFixed(0);
         document.getElementById('revenueChange').textContent = 
-            `+${revenueImpact.percentage}% revenue optimization`;
+            `${revenueImpact.percentage >= 0 ? '+' : ''}${revenueImpact.percentage}% revenue impact`;
         document.getElementById('revenueChange').className = 
             `revenue-change ${revenueImpact.change >= 0 ? 'positive' : 'negative'}`;
 
@@ -257,8 +330,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const labels = Array.from({length: daysAhead}, (_, i) => `Day ${i + 1}`);
         const forecastData = Array.from({length: daysAhead}, (_, i) => {
             const base = prediction.occupancy * 100;
-            const noise = (Math.random() - 0.5) * 10;
-            return Math.max(10, Math.min(95, base + noise));
+            const noise = (Math.random() - 0.5) * 8;
+            return Math.max(10, Math.min(95, base + noise - (i * 0.5)));
         });
 
         if (forecastChart) {
@@ -298,6 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initialize with some default visualizations
-    createEDAVisualizations();
+    // Initialize with some default values
+    console.log("✅ All event listeners registered");
 });
