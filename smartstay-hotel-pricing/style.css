@@ -10,6 +10,7 @@ body {
     color: #333;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
+    padding: 20px;
 }
 
 .container {
@@ -19,8 +20,6 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 30px;
-    margin-top: 20px;
-    margin-bottom: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
@@ -42,7 +41,7 @@ header p {
     font-size: 1.2em;
 }
 
-/* EDA Section */
+/* Sections */
 .eda-section, .model-section, .prototype-section, .innovation-section {
     margin-bottom: 50px;
     padding: 30px;
@@ -59,6 +58,7 @@ h2 {
     padding-left: 15px;
 }
 
+/* EDA Section */
 .eda-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -83,6 +83,7 @@ h2 {
     padding: 30px;
     text-align: center;
     transition: all 0.3s ease;
+    margin-bottom: 15px;
 }
 
 .upload-area:hover {
@@ -98,26 +99,53 @@ h2 {
     width: 100%;
 }
 
-#uploadStatus {
+.upload-status {
     margin-top: 15px;
     font-weight: bold;
     padding: 10px;
     border-radius: 6px;
+    text-align: center;
 }
 
-.success {
+.upload-status.loading {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.upload-status.success {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
 }
 
-.error {
+.upload-status.error {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
 
+.analyze-btn {
+    width: 100%;
+    padding: 12px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.analyze-btn:hover {
+    background: #219a52;
+}
+
 /* Charts Grid */
+.eda-visuals {
+    display: none;
+}
+
 .charts-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -136,6 +164,22 @@ h2 {
     margin-bottom: 15px;
     color: #495057;
     text-align: center;
+}
+
+/* Data Stats */
+.data-stats {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #dee2e6;
 }
 
 /* Model Section */
@@ -177,6 +221,11 @@ h2 {
     border-radius: 8px;
     text-align: center;
     width: 200px;
+}
+
+.layer-arrow {
+    font-size: 1.5em;
+    color: #7f8c8d;
 }
 
 .gru-layer {
@@ -228,7 +277,12 @@ h2 {
     padding: 0;
 }
 
-#predictBtn {
+.input-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+}
+
+.predict-btn {
     width: 100%;
     padding: 15px;
     background: linear-gradient(135deg, #3498db, #2980b9);
@@ -239,9 +293,10 @@ h2 {
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
+    margin-top: 10px;
 }
 
-#predictBtn:hover {
+.predict-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
 }
@@ -303,26 +358,6 @@ h2 {
     border: 1px solid #e9ecef;
 }
 
-/* Innovation Section */
-.insights-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-}
-
-.insight-card {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 25px;
-    border-radius: 12px;
-    text-align: center;
-}
-
-.insight-card h3 {
-    margin-bottom: 15px;
-    font-size: 1.2em;
-}
-
 /* Feature Impacts */
 .feature-impacts {
     margin-top: 20px;
@@ -330,7 +365,7 @@ h2 {
 
 .feature-impact-item {
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
     padding: 8px;
@@ -357,19 +392,34 @@ h2 {
 .negative { background: #e74c3c; }
 .neutral { background: #f39c12; }
 
-/* Data Stats */
-.data-stats {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 10px;
-    margin-top: 20px;
+.price-change.positive { color: #27ae60; }
+.price-change.negative { color: #e74c3c; }
+.revenue-change.positive { color: #27ae60; }
+.revenue-change.negative { color: #e74c3c; }
+
+/* Innovation Section */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
 }
 
-.stat-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #dee2e6;
+.insight-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.insight-card h3 {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+/* Initially hidden sections */
+.model-section, .prototype-section, .innovation-section {
+    display: none;
 }
 
 /* Responsive Design */
@@ -385,7 +435,11 @@ h2 {
     }
     
     .container {
-        margin: 10px;
         padding: 20px;
+        margin: 10px;
+    }
+    
+    header h1 {
+        font-size: 2em;
     }
 }
