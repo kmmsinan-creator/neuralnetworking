@@ -23,9 +23,7 @@ function visualizeEDA(data) {
     y: Object.values(monthCounts),
     type: "bar",
     marker: { color: "#2ca02c" },
-  }], {
-    title: "Bookings by Month",
-  });
+  }], { title: "Bookings by Month" });
 
   // Cancellation Rate by Month
   const cancelByMonth = {};
@@ -37,17 +35,13 @@ function visualizeEDA(data) {
     if (d.is_canceled === 1) cancelByMonth[m].canceled++;
   });
   const months = Object.keys(cancelByMonth);
-  const cancelRates = months.map(
-    m => (cancelByMonth[m].canceled / cancelByMonth[m].total) * 100
-  );
+  const cancelRates = months.map(m => (cancelByMonth[m].canceled / cancelByMonth[m].total) * 100);
   Plotly.newPlot("cancelPlot", [{
     x: months,
     y: cancelRates,
     type: "bar",
     marker: { color: "#d62728" },
-  }], {
-    title: "Cancellation Rate by Month (%)",
-  });
+  }], { title: "Cancellation Rate by Month (%)" });
 
   // Missing Values
   const missingCounts = {};
@@ -64,4 +58,39 @@ function visualizeEDA(data) {
     xaxis: { title: "Columns" },
     yaxis: { title: "Missing Count" },
   });
+}
+
+// Correlation Heatmap
+function visualizeCorrelation(data) {
+  // Extract numeric columns
+  const numericKeys = Object.keys(data[0]).filter(key =>
+    data.every(d => !isNaN(parseFloat(d[key])))
+  );
+  if (numericKeys.length < 2) return;
+
+  // Build correlation matrix
+  const values = numericKeys.map(key => data.map(d => parseFloat(d[key])));
+  const corrMatrix = numericKeys.map((rowKey, i) =>
+    numericKeys.map((colKey, j) => {
+      const x = values[i];
+      const y = values[j];
+      const n = x.length;
+      const meanX = x.reduce((a,b)=>a+b,0)/n;
+      const meanY = y.reduce((a,b)=>a+b,0)/n;
+      const cov = x.reduce((sum, xi, idx) => sum + (xi-meanX)*(y[idx]-meanY), 0)/n;
+      const stdX = Math.sqrt(x.reduce((sum, xi) => sum + Math.pow(xi-meanX,2),0)/n);
+      const stdY = Math.sqrt(y.reduce((sum, yi, idx) => sum + Math.pow(yi-meanY,2),0)/n);
+      return cov/(stdX*stdY);
+    })
+  );
+
+  Plotly.newPlot("corrPlot", [{
+    z: corrMatrix,
+    x: numericKeys,
+    y: numericKeys,
+    type: "heatmap",
+    colorscale: "Viridis",
+    zmin: -1,
+    zmax: 1
+  }], { title: "Correlation Heatmap" });
 }
