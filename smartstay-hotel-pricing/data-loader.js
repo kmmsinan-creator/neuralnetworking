@@ -85,15 +85,19 @@ class DataLoader {
     performEDA() {
         if (!this.dataset || this.dataset.length === 0) return;
         
+        // Calculate missing values first
+        const missingValues = this.calculateMissingValues();
+        const dataQuality = this.calculateDataQuality(missingValues);
+        
         this.stats = {
             totalRows: this.dataset.length,
             totalFeatures: this.features.length,
             numericalFeatures: this.getNumericalFeatures(),
             categoricalFeatures: this.getCategoricalFeatures(),
-            missingValues: this.calculateMissingValues(),
-            basicStats: this.calculateBasicStats(),
+            missingValues: missingValues,
+            basicStats: this.calculateBasicStats(missingValues),
             bookingAnalysis: this.analyzeBookings(),
-            dataQuality: this.calculateDataQuality()
+            dataQuality: dataQuality
         };
 
         this.analysis = {
@@ -101,7 +105,7 @@ class DataLoader {
             monthlyPatterns: this.analyzeMonthlyPatterns(),
             leadTimeAnalysis: this.analyzeLeadTime(),
             cancellationAnalysis: this.analyzeCancellations(),
-            missingValuesAnalysis: this.analyzeMissingValues(),
+            missingValuesAnalysis: this.analyzeMissingValues(missingValues),
             featureDistributions: this.analyzeFeatureDistributions()
         };
     }
@@ -144,25 +148,26 @@ class DataLoader {
         return missing;
     }
 
-    analyzeMissingValues() {
-        const missingValues = this.calculateMissingValues();
+    analyzeMissingValues(missingValues) {
         const featuresWithMissing = Object.entries(missingValues)
             .filter(([feature, data]) => data.count > 0)
             .sort((a, b) => b[1].count - a[1].count);
 
+        const totalMissingCells = Object.values(missingValues).reduce((sum, item) => sum + item.count, 0);
+        const totalCells = this.dataset.length * this.features.length;
+
         return {
-            totalMissingCells: Object.values(missingValues).reduce((sum, item) => sum + item.count, 0),
-            totalCells: this.dataset.length * this.features.length,
-            missingPercentage: (Object.values(missingValues).reduce((sum, item) => sum + item.count, 0) / 
-                             (this.dataset.length * this.features.length) * 100).toFixed(2),
+            totalMissingCells: totalMissingCells,
+            totalCells: totalCells,
+            missingPercentage: (totalMissingCells / totalCells * 100).toFixed(2),
             featuresWithMissing: featuresWithMissing.slice(0, 10), // Top 10 features with missing values
             completeFeatures: this.features.filter(feature => missingValues[feature].count === 0)
         };
     }
 
-    calculateDataQuality() {
+    calculateDataQuality(missingValues) {
         const totalCells = this.dataset.length * this.features.length;
-        const missingCells = Object.values(this.stats.missingValues).reduce((sum, item) => sum + item.count, 0);
+        const missingCells = Object.values(missingValues).reduce((sum, item) => sum + item.count, 0);
         const qualityScore = ((totalCells - missingCells) / totalCells * 100).toFixed(2);
         
         return {
@@ -175,7 +180,7 @@ class DataLoader {
         };
     }
 
-    calculateBasicStats() {
+    calculateBasicStats(missingValues) {
         const stats = {};
         this.getNumericalFeatures().forEach(feature => {
             const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number' && !isNaN(val));
@@ -187,7 +192,7 @@ class DataLoader {
                     median: this.calculateMedian(values),
                     std: this.calculateStandardDeviation(values),
                     count: values.length,
-                    missing: this.stats.missingValues[feature].count
+                    missing: missingValues[feature] ? missingValues[feature].count : 0
                 };
             }
         });
@@ -231,7 +236,9 @@ class DataLoader {
         const hotelCounts = {};
         this.dataset.forEach(row => {
             const hotel = row.hotel;
-            hotelCounts[hotel] = (hotelCounts[hotel] || 0) + 1;
+            if (hotel) {
+                hotelCounts[hotel] = (hotelCounts[hotel] || 0) + 1;
+            }
         });
         return hotelCounts;
     }
@@ -249,7 +256,16 @@ class DataLoader {
     }
 
     analyzeLeadTime() {
-        const leadTimes = this.dataset.map(row => row.lead_time).filter(val => typeof val === 'number');
+        const leadTimes = this.dataset.map(row => row.lead_time).filter(val => typeof val === 'number' && !isNaN(val));
+        if (leadTimes.length === 0) {
+            return {
+                average: '0',
+                min: 0,
+                max: 0,
+                distribution: []
+            };
+        }
+        
         return {
             average: (leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length).toFixed(2),
             min: Math.min(...leadTimes),
@@ -275,7 +291,7 @@ class DataLoader {
         // Analyze key numerical features
         ['lead_time', 'adr', 'stays_in_weekend_nights', 'stays_in_week_nights'].forEach(feature => {
             if (this.features.includes(feature)) {
-                const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number');
+                const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number' && !isNaN(val));
                 if (values.length > 0) {
                     distributions[feature] = this.createDistribution(values, 8);
                 }
@@ -286,6 +302,15 @@ class DataLoader {
     }
 
     createDistribution(values, bins) {
+        if (values.length === 0) {
+            return {
+                bins: Array(bins).fill(0),
+                labels: Array.from({length: bins}, (_, i) => `Bin ${i + 1}`),
+                min: 0,
+                max: 0
+            };
+        }
+        
         const min = Math.min(...values);
         const max = Math.max(...values);
         const binSize = (max - min) / bins;
@@ -323,7 +348,7 @@ class DataLoader {
     }
 
     getMissingValuesHTML() {
-        if (!this.analysis.missingValuesAnalysis) return '';
+        if (!this.analysis || !this.analysis.missingValuesAnalysis) return '';
         
         const missingAnalysis = this.analysis.missingValuesAnalysis;
         
