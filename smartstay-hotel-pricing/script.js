@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', function() {
             await dataLoader.loadFile(file);
             
             const datasetInfo = dataLoader.getDatasetInfo();
+            if (!datasetInfo.stats) {
+                throw new Error('Dataset analysis failed');
+            }
+            
             uploadStatus.textContent = `✅ Dataset loaded! ${datasetInfo.stats.totalRows.toLocaleString()} records, ${datasetInfo.stats.totalFeatures} features`;
             uploadStatus.className = 'upload-status success';
             
@@ -54,6 +58,13 @@ document.addEventListener('DOMContentLoaded', function() {
     analyzeBtn.addEventListener('click', function() {
         if (!dataLoader.dataset) {
             uploadStatus.textContent = '❌ Please upload a dataset first';
+            uploadStatus.className = 'upload-status error';
+            return;
+        }
+
+        // Add safety check
+        if (!dataLoader.stats || !dataLoader.analysis) {
+            uploadStatus.textContent = '❌ Dataset analysis failed. Please try uploading again.';
             uploadStatus.className = 'upload-status error';
             return;
         }
@@ -122,8 +133,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.hotelTypeDistribution) {
+                console.warn('Hotel type distribution data not available');
+                return;
+            }
+            
             const labels = Object.keys(analysis.hotelTypeDistribution);
             const data = Object.values(analysis.hotelTypeDistribution);
+            
+            // If no data, show empty chart
+            if (data.length === 0 || data.reduce((a, b) => a + b, 0) === 0) {
+                console.warn('No hotel type data available');
+                return;
+            }
             
             hotelTypeChart = new Chart(ctx, {
                 type: 'pie',
@@ -133,11 +155,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         data: data,
                         backgroundColor: [
                             'rgba(255, 99, 132, 0.8)',
-                            'rgba(54, 162, 235, 0.8)'
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)'
                         ],
                         borderColor: [
                             'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)'
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)'
                         ],
                         borderWidth: 2
                     }]
@@ -169,7 +195,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const monthlyData = dataLoader.analysis.monthlyPatterns;
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.monthlyPatterns) {
+                console.warn('Monthly patterns data not available');
+                return;
+            }
+            
+            const monthlyData = analysis.monthlyPatterns;
             const labels = Object.keys(monthlyData);
             const data = Object.values(monthlyData);
             
@@ -201,6 +233,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 display: true,
                                 text: 'Number of Bookings'
                             }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
                         }
                     }
                 }
@@ -218,7 +256,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const leadTimeData = dataLoader.analysis.leadTimeAnalysis;
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.leadTimeAnalysis) {
+                console.warn('Lead time analysis data not available');
+                return;
+            }
+            
             // Create sample distribution data based on actual statistics
             const labels = ['0-30', '31-60', '61-90', '91-180', '181-365', '365+'];
             const data = [35, 25, 15, 12, 8, 5];
@@ -250,7 +293,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             title: {
                                 display: true,
                                 text: 'Percentage (%)'
-                            }
+                            },
+                            max: 100
                         },
                         x: {
                             title: {
@@ -274,8 +318,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const missingAnalysis = dataLoader.analysis.missingValuesAnalysis;
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.missingValuesAnalysis) {
+                console.warn('Missing values analysis data not available');
+                return;
+            }
+            
+            const missingAnalysis = analysis.missingValuesAnalysis;
             const topMissingFeatures = missingAnalysis.featuresWithMissing.slice(0, 8);
+            
+            // If no missing values, show empty chart with message
+            if (topMissingFeatures.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data-message">🎉 No missing values found in the dataset!</div>';
+                return;
+            }
             
             const labels = topMissingFeatures.map(([feature]) => feature);
             const missingData = topMissingFeatures.map(([feature, data]) => parseFloat(data.percentage));
@@ -343,7 +399,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const cancellationData = dataLoader.analysis.cancellationAnalysis;
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.cancellationAnalysis) {
+                console.warn('Cancellation analysis data not available');
+                return;
+            }
+            
+            const cancellationData = analysis.cancellationAnalysis;
             
             cancellationChart = new Chart(ctx, {
                 type: 'doughnut',
@@ -409,35 +471,53 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Safety check for dataset analysis
+        if (!dataLoader.stats || !dataLoader.analysis) {
+            alert('Dataset analysis incomplete. Please click "Analyze Dataset" first.');
+            return;
+        }
+
         console.log("🧠 Running GRU prediction...");
         
         // Gather inputs
         const features = {
-            basePrice: parseInt(document.getElementById('basePrice').value),
-            leadTime: parseInt(document.getElementById('leadTime').value),
-            month: document.getElementById('month').value,
-            hotelType: document.getElementById('hotelType').value,
-            guestType: document.getElementById('guestType').value,
-            weekendNights: parseInt(document.getElementById('weekendNights').value),
-            weekNights: parseInt(document.getElementById('weekNights').value),
-            adults: parseInt(document.getElementById('adults').value),
-            isRepeatedGuest: document.getElementById('isRepeatedGuest').checked
+            basePrice: parseInt(document.getElementById('basePrice').value) || 150,
+            leadTime: parseInt(document.getElementById('leadTime').value) || 30,
+            month: document.getElementById('month').value || 'July',
+            hotelType: document.getElementById('hotelType').value || 'Resort Hotel',
+            guestType: document.getElementById('guestType').value || 'Transient',
+            weekendNights: parseInt(document.getElementById('weekendNights').value) || 0,
+            weekNights: parseInt(document.getElementById('weekNights').value) || 2,
+            adults: parseInt(document.getElementById('adults').value) || 2,
+            isRepeatedGuest: document.getElementById('isRepeatedGuest').checked || false
         };
 
-        // Get GRU prediction
-        const prediction = gruModel.predict(features);
-        const occupancyPercent = (prediction.occupancy * 100).toFixed(1);
+        // Validate inputs
+        if (isNaN(features.basePrice) || isNaN(features.leadTime) || 
+            isNaN(features.weekendNights) || isNaN(features.weekNights) || isNaN(features.adults)) {
+            alert('Please enter valid numbers for all fields.');
+            return;
+        }
 
-        // Calculate smart pricing
-        const priceRecommendation = calculateOptimalPrice(features.basePrice, prediction.occupancy);
-        const revenueImpact = calculateRevenueImpact(features.basePrice, priceRecommendation, prediction.occupancy);
+        try {
+            // Get GRU prediction
+            const prediction = gruModel.predict(features);
+            const occupancyPercent = (prediction.occupancy * 100).toFixed(1);
 
-        // Update UI with results
-        updatePredictionResults(prediction, priceRecommendation, revenueImpact, features);
-        updateFeatureImpacts(prediction.featureImpacts);
-        createForecastChart(prediction);
-        
-        console.log("✅ GRU prediction completed");
+            // Calculate smart pricing
+            const priceRecommendation = calculateOptimalPrice(features.basePrice, prediction.occupancy);
+            const revenueImpact = calculateRevenueImpact(features.basePrice, priceRecommendation, prediction.occupancy);
+
+            // Update UI with results
+            updatePredictionResults(prediction, priceRecommendation, revenueImpact, features);
+            updateFeatureImpacts(prediction.featureImpacts);
+            createForecastChart(prediction);
+            
+            console.log("✅ GRU prediction completed");
+        } catch (error) {
+            console.error('Prediction error:', error);
+            alert('Error generating prediction. Please try again.');
+        }
     });
 
     function calculateOptimalPrice(basePrice, occupancy) {
@@ -462,9 +542,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updatePredictionResults(prediction, recommendedPrice, revenueImpact, features) {
+        // Update occupancy prediction
         document.getElementById('predictedOccupancy').textContent = (prediction.occupancy * 100).toFixed(1) + '%';
         document.getElementById('confidenceLevel').textContent = `Confidence: ${(prediction.confidence * 100).toFixed(1)}%`;
         
+        // Update price recommendation
         document.getElementById('recommendedPrice').textContent = '$' + recommendedPrice.toFixed(2);
         const priceChange = ((recommendedPrice - features.basePrice) / features.basePrice * 100).toFixed(1);
         document.getElementById('priceChange').textContent = 
@@ -472,6 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('priceChange').className = 
             `price-change ${priceChange >= 0 ? 'positive' : 'negative'}`;
         
+        // Update revenue impact
         document.getElementById('expectedRevenue').textContent = '$' + 
             (revenueImpact.change + (features.basePrice * 100)).toFixed(0);
         document.getElementById('revenueChange').textContent = 
@@ -488,6 +571,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateFeatureImpacts(impacts) {
         const container = document.getElementById('featureImpacts');
+        if (!container) return;
+        
         container.innerHTML = impacts.map(impact => `
             <div class="feature-impact-item">
                 <span>${impact.feature}</span>
@@ -512,19 +597,19 @@ document.addEventListener('DOMContentLoaded', function() {
             forecastChart.destroy();
         }
 
-        // Generate 30-day forecast data
-        const labels = Array.from({length: 30}, (_, i) => `Day ${i + 1}`);
-        const baseOccupancy = prediction.occupancy * 100;
-        const forecastData = Array.from({length: 30}, (_, i) => {
-            // Simulate realistic occupancy fluctuations
-            const trend = Math.sin(i * 0.2) * 8; // Weekly pattern
-            const noise = (Math.random() - 0.5) * 6; // Random noise
-            const weekendBoost = (i % 7 === 5 || i % 7 === 6) ? 12 : 0; // Weekend effect
-            
-            return Math.max(15, Math.min(95, baseOccupancy + trend + noise + weekendBoost - (i * 0.3)));
-        });
-
         try {
+            // Generate 30-day forecast data
+            const labels = Array.from({length: 30}, (_, i) => `Day ${i + 1}`);
+            const baseOccupancy = prediction.occupancy * 100;
+            const forecastData = Array.from({length: 30}, (_, i) => {
+                // Simulate realistic occupancy fluctuations
+                const trend = Math.sin(i * 0.2) * 8; // Weekly pattern
+                const noise = (Math.random() - 0.5) * 6; // Random noise
+                const weekendBoost = (i % 7 === 5 || i % 7 === 6) ? 12 : 0; // Weekend effect
+                
+                return Math.max(15, Math.min(95, baseOccupancy + trend + noise + weekendBoost - (i * 0.3)));
+            });
+
             forecastChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -584,6 +669,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch (error) {
             console.error('Error creating forecast chart:', error);
+            ctx.parentElement.innerHTML = '<div class="error-message">Error creating forecast chart</div>';
         }
     }
 
@@ -591,6 +677,21 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', function() {
         destroyAllCharts();
     });
+
+    // Add CSS for error messages
+    const style = document.createElement('style');
+    style.textContent = `
+        .no-data-message, .error-message {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .error-message {
+            color: #dc3545;
+        }
+    `;
+    document.head.appendChild(style);
 
     // Initialize with sample data display
     console.log("✅ All event listeners registered for hotel booking analysis");
