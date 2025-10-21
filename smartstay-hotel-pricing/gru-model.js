@@ -14,18 +14,21 @@ class GRUModel {
     }
 
     simulateTraining() {
-        console.log("🧠 Simulating GRU model training on 119,391 records...");
+        console.log("🧠 Simulating GRU model training...");
         
         // Simulate training process
         for (let epoch = 1; epoch <= 5; epoch++) {
             const loss = 0.15 - (epoch * 0.02);
             const accuracy = 0.70 + (epoch * 0.05);
-            this.trainingHistory.push({ epoch, loss: loss.toFixed(4), accuracy: accuracy.toFixed(4) });
+            this.trainingHistory.push({ 
+                epoch, 
+                loss: loss.toFixed(4), 
+                accuracy: accuracy.toFixed(4) 
+            });
         }
         
         this.isTrained = true;
         console.log("✅ GRU model training completed!");
-        console.log("Training History:", this.trainingHistory);
     }
 
     predict(features) {
@@ -45,22 +48,22 @@ class GRUModel {
         // Simulate GRU's temporal pattern recognition
         let basePrediction = currentOccupancy / 100;
         
-        // Season effect (GRU learns seasonal patterns)
+        // Season effect
         const seasonEffects = { low: -0.2, medium: 0.0, high: 0.3 };
         basePrediction += seasonEffects[season] || 0;
 
-        // Holiday effect (GRU captures event-based spikes)
+        // Holiday effect
         if (isHoliday) basePrediction += 0.25;
 
-        // Lead time effect (GRU understands booking windows)
+        // Lead time effect
         const leadTimeEffect = this.calculateLeadTimeEffect(leadTime);
         basePrediction += leadTimeEffect;
 
-        // Temporal decay for longer forecasts (GRU's sequence understanding)
-        const temporalDecay = (daysAhead - 7) * 0.01;
+        // Temporal decay for longer forecasts
+        const temporalDecay = (daysAhead - 7) * 0.008;
         basePrediction -= temporalDecay;
 
-        // Add some realistic noise based on model confidence
+        // Add realistic noise based on model confidence
         const confidence = this.calculateConfidence(basePrediction);
         const noise = (1 - confidence) * (Math.random() - 0.5) * 0.1;
         basePrediction += noise;
@@ -77,15 +80,13 @@ class GRUModel {
     }
 
     calculateLeadTimeEffect(leadTime) {
-        // GRU learns non-linear relationships with lead time
         if (leadTime < 7) return 0.05;  // Last-minute bookings
         if (leadTime <= 30) return 0.15; // Optimal booking window
         if (leadTime <= 90) return 0.10; // Advanced planning
-        return 0.02; // Very advanced (might have higher cancellation)
+        return 0.02; // Very advanced
     }
 
     calculateConfidence(prediction) {
-        // GRU is more confident around typical occupancy ranges
         const midRange = 0.6;
         const distanceFromMid = Math.abs(prediction - midRange);
         return Math.max(0.7, 1 - distanceFromMid * 2);
@@ -119,7 +120,7 @@ class GRUModel {
             impacts.push({
                 feature: feature.replace('_', ' '),
                 impact: impact,
-                direction: impact >= 0 ? 'positive' : 'negative'
+                direction: impact >= 0 ? 'positive' : impact < 0 ? 'negative' : 'neutral'
             });
         });
 
@@ -131,28 +132,34 @@ class GRUModel {
         const occupancyPercent = (prediction * 100).toFixed(1);
 
         if (prediction > 0.75) {
-            logic.push(`🏨 High demand forecast (${occupancyPercent}% occupancy)`);
-            logic.push(`📈 Market conditions favor premium pricing`);
-            logic.push(`💰 Recommend price increase to maximize revenue`);
+            logic.push(`High demand forecast detected (${occupancyPercent}% occupancy)`);
+            logic.push(`Market conditions favor premium pricing strategy`);
+            logic.push(`Recommend 25-40% price increase to maximize revenue`);
         } else if (prediction > 0.55) {
-            logic.push(`⚖️ Moderate demand (${occupancyPercent}% occupancy)`);
-            logic.push(`🎯 Balanced pricing strategy recommended`);
-            logic.push(`📊 Small premium justified by market position`);
+            logic.push(`Moderate demand period (${occupancyPercent}% occupancy)`);
+            logic.push(`Balanced pricing strategy recommended`);
+            logic.push(`Small premium (5-15%) justified by current market position`);
         } else {
-            logic.push(`📉 Low demand period (${occupancyPercent}% occupancy)`);
-            logic.push(`🎪 Competitive pricing needed to attract bookings`);
-            logic.push(`💡 Discount strategy to minimize empty rooms`);
+            logic.push(`Low demand period identified (${occupancyPercent}% occupancy)`);
+            logic.push(`Competitive pricing needed to attract bookings`);
+            logic.push(`Recommend 15-25% discount to minimize empty rooms`);
         }
 
         // Add feature-specific insights
         if (features.isHoliday) {
-            logic.push(`🎄 Holiday period detected - high demand expected`);
+            logic.push(`Holiday period detected - expecting higher demand`);
         }
         
         if (features.leadTime < 7) {
-            logic.push(`⏰ Short lead time - last-minute booking pattern`);
+            logic.push(`Short lead time pattern - last-minute booking behavior`);
         } else if (features.leadTime > 90) {
-            logic.push(`📅 Long lead time - advanced planning pattern`);
+            logic.push(`Long lead time pattern - advanced planning detected`);
+        }
+
+        if (features.season === 'high') {
+            logic.push(`Peak season - strong market position for pricing`);
+        } else if (features.season === 'low') {
+            logic.push(`Off-season - focus on occupancy over price premium`);
         }
 
         return logic;
