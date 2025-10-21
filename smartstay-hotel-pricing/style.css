@@ -1,62 +1,391 @@
-/* Add these new styles to your existing CSS */
-
-.data-upload {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.upload-area {
-    border: 2px dashed #3498db;
-    border-radius: 8px;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
     padding: 30px;
-    text-align: center;
-    margin-bottom: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
-.upload-area input {
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+header h1 {
+    color: #2c3e50;
+    font-size: 2.5em;
     margin-bottom: 10px;
 }
 
-.data-preview {
-    margin-top: 20px;
-    max-height: 300px;
-    overflow-y: auto;
+header p {
+    color: #7f8c8d;
+    font-size: 1.2em;
 }
 
-.preview-table {
+/* EDA Section */
+.eda-section, .model-section, .prototype-section, .innovation-section {
+    margin-bottom: 50px;
+    padding: 30px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+h2 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 1.8em;
+    border-left: 5px solid #3498db;
+    padding-left: 15px;
+}
+
+.eda-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.justification ul {
+    list-style: none;
+    margin-top: 15px;
+}
+
+.justification li {
+    padding: 8px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 3px dashed #3498db;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: #2980b9;
+    background: #f8f9fa;
+}
+
+.upload-area input {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 6px;
     width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
-
-.preview-table th, .preview-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-    font-size: 0.9em;
-}
-
-.preview-table th {
-    background-color: #f2f2f2;
-    position: sticky;
-    top: 0;
 }
 
 #uploadStatus {
-    margin-top: 10px;
+    margin-top: 15px;
     font-weight: bold;
+    padding: 10px;
+    border-radius: 6px;
 }
 
 .success {
-    color: #27ae60;
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .error {
-    color: #e74c3c;
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
-.hidden {
-    display: none;
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.chart-container {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+.chart-container h4 {
+    margin-bottom: 15px;
+    color: #495057;
+    text-align: center;
+}
+
+/* Model Section */
+.model-justification {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+}
+
+.reasons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.reason {
+    background: #e8f4fc;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #3498db;
+}
+
+.reason h4 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.arch-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.layer {
+    padding: 15px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    text-align: center;
+    width: 200px;
+}
+
+.gru-layer {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    font-weight: bold;
+}
+
+/* Prototype Section */
+.simulation-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+}
+
+.controls {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.input-group input:focus, .input-group select:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.input-group input[type="range"] {
+    padding: 0;
+}
+
+#predictBtn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#predictBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+/* Results */
+.prediction-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.prediction-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: 2px solid #e9ecef;
+    transition: transform 0.3s ease;
+}
+
+.prediction-card:hover {
+    transform: translateY(-5px);
+}
+
+.prediction-card h4 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.prediction-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.confidence, .price-change, .revenue-change {
+    font-size: 0.9em;
+    padding: 5px 10px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.business-logic {
+    background: #fff3cd;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #ffc107;
+    margin-bottom: 20px;
+}
+
+.forecast-chart {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+/* Innovation Section */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.insight-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.insight-card h3 {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+/* Feature Impacts */
+.feature-impacts {
+    margin-top: 20px;
+}
+
+.feature-impact-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.impact-bar {
+    flex-grow: 1;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    margin: 0 10px;
+    overflow: hidden;
+}
+
+.impact-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.positive { background: #27ae60; }
+.negative { background: #e74c3c; }
+.neutral { background: #f39c12; }
+
+/* Data Stats */
+.data-stats {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .eda-content,
+    .model-justification,
+    .simulation-container,
+    .charts-grid,
+    .reasons,
+    .prediction-cards,
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .container {
+        margin: 10px;
+        padding: 20px;
+    }
 }
