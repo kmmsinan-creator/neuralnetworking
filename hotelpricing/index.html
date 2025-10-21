@@ -1,105 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Hotel Pricing Optimization Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Room Pricing Optimization - AI Prototype</title>
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
+
 <body>
+  <!-- HEADER -->
   <header class="hero">
     <div class="overlay"></div>
     <div class="hero-content">
-      <h1>🏨 AI-Driven Hotel Pricing Optimization</h1>
-      <p>Transforming hotel demand forecasting with GRU-based deep learning</p>
-      <a href="#dashboard" class="btn">Explore Dashboard ↓</a>
+      <h1>🏨 AI-Powered Hotel Pricing Optimization</h1>
+      <p>Using GRU-based Neural Networks for Smarter, Dynamic Room Pricing</p>
+      <a href="#overview" class="btn">Explore the Project ↓</a>
     </div>
   </header>
 
-  <main>
-    <!-- Overview -->
-    <section id="overview" class="glass-card fade-in">
-      <h2>🧾 Project Overview</h2>
-      <p>
-        This project uses the <strong>Hotel Booking Demand Dataset</strong> (Kaggle) to build an
-        <strong>AI-powered GRU model</strong> that predicts room demand and optimizes pricing.  
-        Through deep learning and analytics, hotels can dynamically adjust rates, reduce cancellations,
-        and maximize occupancy.
-      </p>
-      <ul>
-        <li><strong>Dataset Source:</strong> Kaggle - Hotel Booking Demand</li>
-        <li><strong>Model:</strong> GRU (Gated Recurrent Unit Neural Network)</li>
-        <li><strong>Goal:</strong> Forecast demand & optimize ADR (Average Daily Rate)</li>
-      </ul>
-    </section>
+  <!-- OVERVIEW -->
+  <section id="overview" class="glass-card fade-in">
+    <h2>🧾 Project Overview</h2>
+    <p>
+      The hospitality industry faces fluctuating demand, cancellations, and inconsistent pricing strategies.  
+      This project applies **Deep Learning (GRU)** to forecast room demand and suggest **optimal prices** that maximize revenue and occupancy.
+    </p>
+    <ul>
+      <li><strong>Dataset:</strong> Hotel Booking Demand (Kaggle)</li>
+      <li><strong>Model:</strong> GRU Neural Network for sequential forecasting</li>
+      <li><strong>Goal:</strong> Predict ADR (Average Daily Rate) & Demand to guide pricing</li>
+    </ul>
+  </section>
 
-    <!-- KPI Dashboard -->
-    <section id="dashboard" class="glass-card fade-in">
-      <h2>📈 Key Business Insights</h2>
-      <div class="kpi-grid">
-        <div class="kpi-card"><h3 id="avgADR">--</h3><p>Avg. Daily Rate (ADR)</p></div>
-        <div class="kpi-card"><h3 id="cancelRate">--</h3><p>Cancellation Rate</p></div>
-        <div class="kpi-card"><h3 id="occupancyRate">--</h3><p>Estimated Occupancy</p></div>
-        <div class="kpi-card"><h3 id="totalBookings">--</h3><p>Total Bookings</p></div>
-      </div>
-    </section>
+  <!-- EDA SECTION -->
+  <section id="eda" class="glass-card fade-in">
+    <h2>📊 Exploratory Data Analysis (EDA)</h2>
+    <p>
+      We explored booking behavior, cancellation patterns, and seasonal ADR changes to understand key variables affecting hotel revenue.
+    </p>
+    <div class="kpi-grid">
+      <div class="kpi-card"><h3 id="avgADR">--</h3><p>Average Daily Rate (ADR)</p></div>
+      <div class="kpi-card"><h3 id="cancelRate">--</h3><p>Cancellation Rate</p></div>
+      <div class="kpi-card"><h3 id="occupancyRate">--</h3><p>Estimated Occupancy</p></div>
+      <div class="kpi-card"><h3 id="totalBookings">--</h3><p>Total Bookings</p></div>
+    </div>
+    <div id="chart1" class="chart"></div>
+    <div id="chart2" class="chart"></div>
+    <div id="chart3" class="chart"></div>
+  </section>
 
-    <!-- Charts -->
-    <section id="charts" class="glass-card fade-in">
-      <h2>📊 Exploratory Data Analysis (EDA)</h2>
-      <div id="chart1" class="chart"></div>
-      <div id="chart2" class="chart"></div>
-      <div id="chart3" class="chart"></div>
-      <div id="chart4" class="chart"></div>
-    </section>
+  <!-- MODEL -->
+  <section id="model" class="glass-card fade-in">
+    <h2>🧠 Modeling Approach (GRU)</h2>
+    <p>
+      We used the <strong>Gated Recurrent Unit (GRU)</strong> model — a type of Recurrent Neural Network ideal for time-series forecasting.  
+      GRU captures **temporal booking trends** with fewer parameters and faster training than LSTM, making it efficient for real-time hotel pricing systems.
+    </p>
+    <ul>
+      <li>✅ Handles seasonal and temporal patterns in bookings.</li>
+      <li>✅ Reduces overfitting vs LSTM for smaller datasets.</li>
+      <li>✅ Enables dynamic, adaptive pricing in production systems.</li>
+    </ul>
+    <div id="chart4" class="chart"></div>
+  </section>
 
-    <!-- Modeling -->
-    <section id="model" class="glass-card fade-in">
-      <h2>🧠 Modeling Approach (GRU)</h2>
-      <p>
-        The <strong>GRU (Gated Recurrent Unit)</strong> neural network captures sequential booking patterns efficiently.
-        Compared to LSTM, GRU uses fewer parameters and trains faster while maintaining strong performance
-        for time-series forecasting tasks like hotel demand prediction.
-      </p>
-      <p>
-        <strong>Model Steps:</strong>  
-        1️⃣ Clean and preprocess data  
-        2️⃣ Create time-series for ADR trends  
-        3️⃣ Train GRU model for forecasting  
-        4️⃣ Evaluate performance (MSE) and visualize predictions
-      </p>
-    </section>
+  <!-- BUSINESS VALUE -->
+  <section id="business" class="glass-card fade-in">
+    <h2>💼 Business Value & Innovation</h2>
+    <p>
+      Beyond predictions, the GRU model enables tangible business value:
+    </p>
+    <ul>
+      <li>💰 <strong>Dynamic Pricing Strategy:</strong> Adjust prices in real-time to match demand, increasing revenue.</li>
+      <li>📈 <strong>Occupancy Forecasting:</strong> Predict low-demand periods to plan discounts or promotions.</li>
+      <li>🚀 <strong>Operational Efficiency:</strong> Data-driven pricing replaces intuition-based pricing.</li>
+      <li>💡 <strong>Innovation:</strong> AI-driven system integrates forecasting + optimization into a smart hotel management tool.</li>
+    </ul>
+  </section>
 
-    <!-- Business Value -->
-    <section id="business" class="glass-card fade-in">
-      <h2>💼 Business Value & Innovation</h2>
-      <ul>
-        <li>💰 <strong>Dynamic Pricing:</strong> AI recommends optimal ADR to increase revenue.</li>
-        <li>📅 <strong>Demand Forecasting:</strong> Predicts low occupancy to plan promotions.</li>
-        <li>🚀 <strong>Predictive Insights:</strong> Avoid overbooking & underutilization.</li>
-        <li>🧭 <strong>Manager Dashboard:</strong> Unified analytics for pricing, occupancy, and cancellations.</li>
-      </ul>
-    </section>
+  <!-- PROTOTYPE -->
+  <section id="prototype" class="glass-card fade-in">
+    <h2>🧩 Application Prototype Functionality</h2>
+    <p>
+      This prototype simulates how a **hotel manager dashboard** might display key KPIs and GRU-based demand forecasts.  
+      It helps managers make proactive decisions, reducing cancellations and improving revenue yield.
+    </p>
+    <p>Try clicking the 🤖 AI Assistant bubble to see insights!</p>
+  </section>
 
-    <!-- Resources -->
-    <section id="links" class="glass-card fade-in">
-      <h2>🔗 Resources</h2>
-      <a href="https://github.com/yourusername/hotel_pricing_optimization" target="_blank" class="btn-secondary">
-        View Source Code on GitHub
-      </a>
-    </section>
-  </main>
-
-  <!-- AI Assistant -->
+  <!-- AI ASSISTANT -->
   <div id="ai-assistant" class="ai-bubble">
     <div id="ai-icon">🤖</div>
     <div id="ai-window" class="ai-window hidden">
       <div id="ai-content">
-        <p><strong>AI Assistant:</strong> Hello 👋 I’m your pricing assistant! Click any insight below:</p>
-        <button class="ai-btn" onclick="showInsight('adr')">💰 ADR Insights</button>
-        <button class="ai-btn" onclick="showInsight('cancel')">📉 Cancellation Trends</button>
+        <p><strong>AI Assistant:</strong> Hello 👋! I'm your dynamic pricing advisor.</p>
+        <button class="ai-btn" onclick="showInsight('season')">📅 Seasonal Demand Insight</button>
+        <button class="ai-btn" onclick="showInsight('cancel')">📉 Cancellations Insight</button>
         <button class="ai-btn" onclick="showInsight('gru')">🧠 GRU Model Advantage</button>
       </div>
     </div>
