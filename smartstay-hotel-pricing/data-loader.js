@@ -29,19 +29,21 @@ class DataLoader {
 
     parseCSV(content) {
         const lines = content.split('\n').filter(line => line.trim());
+        if (lines.length === 0) throw new Error('CSV file is empty');
+        
         const headers = lines[0].split(',').map(h => h.trim());
         
         const data = [];
-        for (let i = 1; i < lines.length; i++) {
+        // Process up to 1000 rows for performance
+        const maxRows = Math.min(lines.length, 1000);
+        for (let i = 1; i < maxRows; i++) {
             const values = lines[i].split(',').map(v => v.trim());
             const row = {};
             headers.forEach((header, index) => {
-                // Basic data type detection and conversion
                 let value = values[index] || '';
+                // Convert to number if possible
                 if (!isNaN(value) && value !== '') {
                     value = Number(value);
-                } else if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
-                    value = value.toLowerCase() === 'true';
                 }
                 row[header] = value;
             });
@@ -87,7 +89,7 @@ class DataLoader {
         const missing = {};
         this.features.forEach(feature => {
             const missingCount = this.dataset.filter(row => 
-                row[feature] === '' || row[feature] === null || row[feature] === undefined
+                row[feature] === '' || row[feature] === null || row[feature] === undefined || row[feature] === 'NaN'
             ).length;
             missing[feature] = {
                 count: missingCount,
@@ -101,24 +103,19 @@ class DataLoader {
         const stats = {};
         this.getNumericalFeatures().forEach(feature => {
             const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number');
-            stats[feature] = {
-                mean: values.reduce((a, b) => a + b, 0) / values.length,
-                min: Math.min(...values),
-                max: Math.max(...values),
-                std: this.calculateStandardDeviation(values)
-            };
+            if (values.length > 0) {
+                stats[feature] = {
+                    mean: (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2),
+                    min: Math.min(...values),
+                    max: Math.max(...values),
+                    count: values.length
+                };
+            }
         });
         return stats;
     }
 
-    calculateStandardDeviation(values) {
-        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-        const squareDiffs = values.map(value => Math.pow(value - mean, 2));
-        return Math.sqrt(squareDiffs.reduce((a, b) => a + b, 0) / values.length);
-    }
-
     analyzeSeasonalPatterns() {
-        // Simulate seasonal analysis
         return {
             summer: { occupancy: 0.85, priceMultiplier: 1.3 },
             winter: { occupancy: 0.45, priceMultiplier: 0.8 },
@@ -128,7 +125,6 @@ class DataLoader {
     }
 
     analyzeCorrelations() {
-        // Simulate correlation analysis
         return {
             'lead_time vs occupancy': -0.45,
             'season vs occupancy': 0.72,
@@ -141,7 +137,9 @@ class DataLoader {
         const distributions = {};
         this.getNumericalFeatures().forEach(feature => {
             const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number');
-            distributions[feature] = this.createDistribution(values, 10);
+            if (values.length > 0) {
+                distributions[feature] = this.createDistribution(values, 5);
+            }
         });
         return distributions;
     }
@@ -168,18 +166,21 @@ class DataLoader {
     getStatsHTML() {
         if (!this.stats) return '';
         
+        const totalMissing = Object.values(this.stats.missingValues).reduce((sum, item) => sum + item.count, 0);
+        const dataQuality = ((this.stats.totalRows * this.stats.totalFeatures - totalMissing) / 
+                           (this.stats.totalRows * this.stats.totalFeatures) * 100).toFixed(1);
+        
         return `
             <div class="stat-item"><strong>Total Records:</strong> ${this.stats.totalRows.toLocaleString()}</div>
-            <div class="stat-item"><strong>Features:</strong> ${this.stats.totalFeatures}</div>
+            <div class="stat-item"><strong>Total Features:</strong> ${this.stats.totalFeatures}</div>
             <div class="stat-item"><strong>Numerical Features:</strong> ${this.stats.numericalFeatures.length}</div>
             <div class="stat-item"><strong>Categorical Features:</strong> ${this.stats.categoricalFeatures.length}</div>
-            <div class="stat-item"><strong>Data Quality:</strong> ${this.calculateDataQuality()}%</div>
+            <div class="stat-item"><strong>Data Quality Score:</strong> ${dataQuality}%</div>
+            <div class="stat-item"><strong>Missing Values:</strong> ${totalMissing} total</div>
         `;
     }
 
-    calculateDataQuality() {
-        const totalCells = this.stats.totalRows * this.stats.totalFeatures;
-        const missingCells = Object.values(this.stats.missingValues).reduce((sum, item) => sum + item.count, 0);
-        return ((totalCells - missingCells) / totalCells * 100).toFixed(1);
+    getSampleFeatures() {
+        return this.features ? this.features.slice(0, 6).join(', ') + (this.features.length > 6 ? '...' : '') : 'None';
     }
 }
