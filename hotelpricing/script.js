@@ -1,5 +1,3 @@
-// Interactive EDA charts using Plotly
-
 function visualizeEDA(data) {
   // ADR Distribution
   const adr = data.map(d => parseFloat(d.adr)).filter(v => !isNaN(v));
@@ -27,8 +25,6 @@ function visualizeEDA(data) {
     marker: { color: "#2ca02c" },
   }], {
     title: "Bookings by Month",
-    xaxis: { title: "Month" },
-    yaxis: { title: "Count" },
   });
 
   // Cancellation Rate by Month
@@ -51,7 +47,21 @@ function visualizeEDA(data) {
     marker: { color: "#d62728" },
   }], {
     title: "Cancellation Rate by Month (%)",
-    xaxis: { title: "Month" },
-    yaxis: { title: "Cancellation %" },
+  });
+
+  // Missing Values
+  const missingCounts = {};
+  Object.keys(data[0]).forEach(key => {
+    missingCounts[key] = data.filter(d => d[key] === "" || d[key] === null).length;
+  });
+  Plotly.newPlot("missingPlot", [{
+    x: Object.keys(missingCounts),
+    y: Object.values(missingCounts),
+    type: "bar",
+    marker: { color: "#9467bd" },
+  }], {
+    title: "Missing Values per Column",
+    xaxis: { title: "Columns" },
+    yaxis: { title: "Missing Count" },
   });
 }
