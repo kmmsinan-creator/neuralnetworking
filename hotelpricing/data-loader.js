@@ -1,21 +1,29 @@
-// Handles CSV upload and parsing using PapaParse
+let uploadedFile = null;
 
+// When file is selected
 document.getElementById("csvFile").addEventListener("change", function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
+  uploadedFile = e.target.files[0];
+});
 
-  Papa.parse(file, {
+// Load and visualize
+document.getElementById("loadButton").addEventListener("click", function () {
+  if (!uploadedFile) {
+    alert("Please select a CSV file first!");
+    return;
+  }
+
+  Papa.parse(uploadedFile, {
     header: true,
     dynamicTyping: true,
     complete: function (results) {
-      const data = results.data;
+      const data = results.data.filter(row => Object.keys(row).length > 1);
       console.log("✅ CSV Loaded:", data.slice(0, 5));
+
       window.uploadedData = data;
 
       if (data[0].adr) {
         visualizeEDA(data);
       }
-
       if (data[0].predicted_adr) {
         visualizeGRU(data);
       }
