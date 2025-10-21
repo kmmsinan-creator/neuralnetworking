@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const analyzeBtn = document.getElementById('analyzeBtn');
     const edaVisuals = document.getElementById('edaVisuals');
     const dataStats = document.getElementById('dataStats');
+    const missingValuesAnalysis = document.getElementById('missingValuesAnalysis');
     const modelSection = document.getElementById('modelSection');
     const prototypeSection = document.getElementById('prototypeSection');
     const innovationSection = document.getElementById('innovationSection');
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let hotelTypeChart = null;
     let monthlyBookingsChart = null;
     let leadTimeChart = null;
+    let missingValuesChart = null;
     let cancellationChart = null;
     let forecastChart = null;
 
@@ -64,6 +66,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update statistics
         dataStats.innerHTML = dataLoader.getStatsHTML();
         
+        // Update missing values analysis
+        missingValuesAnalysis.innerHTML = dataLoader.getMissingValuesHTML();
+        
         // Create EDA visualizations
         createEDAVisualizations();
         
@@ -88,12 +93,13 @@ document.addEventListener('DOMContentLoaded', function() {
         createHotelTypeChart();
         createMonthlyBookingsChart();
         createLeadTimeDistributionChart();
+        createMissingValuesChart();
         createCancellationChart();
     }
 
     // Function to destroy all existing charts
     function destroyAllCharts() {
-        const charts = [hotelTypeChart, monthlyBookingsChart, leadTimeChart, cancellationChart, forecastChart];
+        const charts = [hotelTypeChart, monthlyBookingsChart, leadTimeChart, missingValuesChart, cancellationChart, forecastChart];
         charts.forEach(chart => {
             if (chart) {
                 chart.destroy();
@@ -102,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
         hotelTypeChart = null;
         monthlyBookingsChart = null;
         leadTimeChart = null;
+        missingValuesChart = null;
         cancellationChart = null;
         forecastChart = null;
     }
@@ -212,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const leadTimeData = dataLoader.analysis.leadTimeAnalysis;
-            // Create sample distribution data
+            // Create sample distribution data based on actual statistics
             const labels = ['0-30', '31-60', '61-90', '91-180', '181-365', '365+'];
             const data = [35, 25, 15, 12, 8, 5];
             
@@ -256,6 +263,75 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch (error) {
             console.error('Error creating lead time chart:', error);
+        }
+    }
+
+    function createMissingValuesChart() {
+        const ctx = document.getElementById('missingValuesChart');
+        if (!ctx) {
+            console.error('Missing values chart canvas not found');
+            return;
+        }
+        
+        try {
+            const missingAnalysis = dataLoader.analysis.missingValuesAnalysis;
+            const topMissingFeatures = missingAnalysis.featuresWithMissing.slice(0, 8);
+            
+            const labels = topMissingFeatures.map(([feature]) => feature);
+            const missingData = topMissingFeatures.map(([feature, data]) => parseFloat(data.percentage));
+            
+            missingValuesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Missing Values (%)',
+                        data: missingData,
+                        backgroundColor: missingData.map(percentage => 
+                            percentage > 10 ? 'rgba(255, 99, 132, 0.8)' :
+                            percentage > 5 ? 'rgba(255, 159, 64, 0.8)' :
+                            'rgba(255, 205, 86, 0.8)'
+                        ),
+                        borderColor: missingData.map(percentage => 
+                            percentage > 10 ? 'rgba(255, 99, 132, 1)' :
+                            percentage > 5 ? 'rgba(255, 159, 64, 1)' :
+                            'rgba(255, 205, 86, 1)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Top Features with Missing Values'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Missing Percentage (%)'
+                            },
+                            max: Math.min(100, Math.max(...missingData) * 1.2)
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating missing values chart:', error);
         }
     }
 
