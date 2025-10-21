@@ -25,11 +25,25 @@ h2 {
   color: #004080;
 }
 
-#csvFile {
+#csvFile,
+#loadButton,
+#downloadReport {
   margin-top: 10px;
-  padding: 8px;
-  border: 1px solid #ccc;
+  padding: 10px 20px;
   border-radius: 5px;
+}
+
+#loadButton,
+#downloadReport {
+  background-color: #004080;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#loadButton:hover,
+#downloadReport:hover {
+  background-color: #0066cc;
 }
 
 footer {
