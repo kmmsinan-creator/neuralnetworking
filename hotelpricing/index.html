@@ -1,112 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hotel Room Pricing Optimization - AI Prototype</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-</head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Room Pricing Optimization (Demand Forecasting)</title>
 
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- JS Libraries -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
 <body>
-  <!-- HEADER -->
-  <header class="hero">
-    <div class="overlay"></div>
-    <div class="hero-content">
-      <h1>🏨 AI-Powered Hotel Pricing Optimization</h1>
-      <p>Using GRU-based Neural Networks for Smarter, Dynamic Room Pricing</p>
-      <a href="#overview" class="btn">Explore the Project ↓</a>
-    </div>
+  <header>
+    <h1>🏨 Hotel Room Pricing Optimization</h1>
+    <p>Demand Forecasting Using GRU Neural Network</p>
   </header>
 
-  <!-- OVERVIEW -->
-  <section id="overview" class="glass-card fade-in">
-    <h2>🧾 Project Overview</h2>
-    <p>
-      The hospitality industry faces fluctuating demand, cancellations, and inconsistent pricing strategies.  
-      This project applies **Deep Learning (GRU)** to forecast room demand and suggest **optimal prices** that maximize revenue and occupancy.
-    </p>
-    <ul>
-      <li><strong>Dataset:</strong> Hotel Booking Demand (Kaggle)</li>
-      <li><strong>Model:</strong> GRU Neural Network for sequential forecasting</li>
-      <li><strong>Goal:</strong> Predict ADR (Average Daily Rate) & Demand to guide pricing</li>
-    </ul>
+  <section id="upload-section">
+    <h2>📁 Upload Your CSV Data</h2>
+    <input type="file" id="csvFile" accept=".csv" />
+    <p>Upload <b>hotel_bookings.csv</b> or <b>gru_forecast.csv</b> to visualize EDA and predictions.</p>
   </section>
 
-  <!-- EDA SECTION -->
-  <section id="eda" class="glass-card fade-in">
+  <section id="eda">
     <h2>📊 Exploratory Data Analysis (EDA)</h2>
-    <p>
-      We explored booking behavior, cancellation patterns, and seasonal ADR changes to understand key variables affecting hotel revenue.
-    </p>
-    <div class="kpi-grid">
-      <div class="kpi-card"><h3 id="avgADR">--</h3><p>Average Daily Rate (ADR)</p></div>
-      <div class="kpi-card"><h3 id="cancelRate">--</h3><p>Cancellation Rate</p></div>
-      <div class="kpi-card"><h3 id="occupancyRate">--</h3><p>Estimated Occupancy</p></div>
-      <div class="kpi-card"><h3 id="totalBookings">--</h3><p>Total Bookings</p></div>
+    <div id="edaPlots">
+      <div id="adrPlot"></div>
+      <div id="monthPlot"></div>
+      <div id="cancelPlot"></div>
     </div>
-    <div id="chart1" class="chart"></div>
-    <div id="chart2" class="chart"></div>
-    <div id="chart3" class="chart"></div>
   </section>
 
-  <!-- MODEL -->
-  <section id="model" class="glass-card fade-in">
-    <h2>🧠 Modeling Approach (GRU)</h2>
-    <p>
-      We used the <strong>Gated Recurrent Unit (GRU)</strong> model — a type of Recurrent Neural Network ideal for time-series forecasting.  
-      GRU captures **temporal booking trends** with fewer parameters and faster training than LSTM, making it efficient for real-time hotel pricing systems.
-    </p>
-    <ul>
-      <li>✅ Handles seasonal and temporal patterns in bookings.</li>
-      <li>✅ Reduces overfitting vs LSTM for smaller datasets.</li>
-      <li>✅ Enables dynamic, adaptive pricing in production systems.</li>
-    </ul>
-    <div id="chart4" class="chart"></div>
+  <section id="model">
+    <h2>🧠 GRU Model Overview</h2>
+    <div id="modelInfo"></div>
+    <div id="gruChart"></div>
   </section>
 
-  <!-- BUSINESS VALUE -->
-  <section id="business" class="glass-card fade-in">
-    <h2>💼 Business Value & Innovation</h2>
-    <p>
-      Beyond predictions, the GRU model enables tangible business value:
-    </p>
+  <section id="insights">
+    <h2>💡 Business Insights</h2>
     <ul>
-      <li>💰 <strong>Dynamic Pricing Strategy:</strong> Adjust prices in real-time to match demand, increasing revenue.</li>
-      <li>📈 <strong>Occupancy Forecasting:</strong> Predict low-demand periods to plan discounts or promotions.</li>
-      <li>🚀 <strong>Operational Efficiency:</strong> Data-driven pricing replaces intuition-based pricing.</li>
-      <li>💡 <strong>Innovation:</strong> AI-driven system integrates forecasting + optimization into a smart hotel management tool.</li>
+      <li>Optimized room pricing can increase revenue by 5–8%.</li>
+      <li>Forecasting helps manage demand seasonality effectively.</li>
+      <li>Reduces cancellations through proactive inventory planning.</li>
     </ul>
   </section>
-
-  <!-- PROTOTYPE -->
-  <section id="prototype" class="glass-card fade-in">
-    <h2>🧩 Application Prototype Functionality</h2>
-    <p>
-      This prototype simulates how a **hotel manager dashboard** might display key KPIs and GRU-based demand forecasts.  
-      It helps managers make proactive decisions, reducing cancellations and improving revenue yield.
-    </p>
-    <p>Try clicking the 🤖 AI Assistant bubble to see insights!</p>
-  </section>
-
-  <!-- AI ASSISTANT -->
-  <div id="ai-assistant" class="ai-bubble">
-    <div id="ai-icon">🤖</div>
-    <div id="ai-window" class="ai-window hidden">
-      <div id="ai-content">
-        <p><strong>AI Assistant:</strong> Hello 👋! I'm your dynamic pricing advisor.</p>
-        <button class="ai-btn" onclick="showInsight('season')">📅 Seasonal Demand Insight</button>
-        <button class="ai-btn" onclick="showInsight('cancel')">📉 Cancellations Insight</button>
-        <button class="ai-btn" onclick="showInsight('gru')">🧠 GRU Model Advantage</button>
-      </div>
-    </div>
-  </div>
 
   <footer>
-    <p>© 2025 | Developed by [Your Name] | Midterm Prototype Presentation</p>
+    © 2025 | Created by [Your Name] | Hotel Demand Forecasting Dashboard
   </footer>
 
+  <!-- JS Scripts -->
+  <script src="data-loader.js"></script>
   <script src="script.js"></script>
+  <script src="gru.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
