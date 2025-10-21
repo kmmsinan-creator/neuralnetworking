@@ -1,10 +1,11 @@
-// Enhanced Data Loader for Hotel Booking Dataset
+// Enhanced Data Loader for Hotel Booking Dataset - Full Data Processing
 class DataLoader {
     constructor() {
         this.dataset = null;
         this.features = null;
         this.stats = null;
         this.analysis = null;
+        this.fullDataset = null;
     }
 
     async loadFile(file) {
@@ -34,17 +35,18 @@ class DataLoader {
         const headers = lines[0].split(',').map(h => h.trim());
         
         const data = [];
-        // Process up to 2000 rows for performance (enough for meaningful analysis)
-        const maxRows = Math.min(lines.length, 2000);
-        for (let i = 1; i < maxRows; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
+        // Process ALL rows for complete analysis
+        for (let i = 1; i < lines.length; i++) {
+            const values = this.parseCSVLine(lines[i]);
             const row = {};
             headers.forEach((header, index) => {
                 let value = values[index] || '';
                 // Convert to number if possible
-                if (!isNaN(value) && value !== '' && value !== 'NULL') {
+                if (!isNaN(value) && value !== '' && value !== 'NULL' && value !== 'null') {
                     value = Number(value);
-                } else if (value === 'NULL') {
+                } else if (value === 'NULL' || value === 'null') {
+                    value = null;
+                } else if (value === '') {
                     value = null;
                 }
                 row[header] = value;
@@ -52,8 +54,32 @@ class DataLoader {
             data.push(row);
         }
         
+        this.fullDataset = data;
+        // Use full dataset for analysis
         this.dataset = data;
         this.features = headers;
+    }
+
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        result.push(current.trim());
+        return result;
     }
 
     performEDA() {
@@ -66,14 +92,17 @@ class DataLoader {
             categoricalFeatures: this.getCategoricalFeatures(),
             missingValues: this.calculateMissingValues(),
             basicStats: this.calculateBasicStats(),
-            bookingAnalysis: this.analyzeBookings()
+            bookingAnalysis: this.analyzeBookings(),
+            dataQuality: this.calculateDataQuality()
         };
 
         this.analysis = {
             hotelTypeDistribution: this.analyzeHotelType(),
             monthlyPatterns: this.analyzeMonthlyPatterns(),
             leadTimeAnalysis: this.analyzeLeadTime(),
-            cancellationAnalysis: this.analyzeCancellations()
+            cancellationAnalysis: this.analyzeCancellations(),
+            missingValuesAnalysis: this.analyzeMissingValues(),
+            featureDistributions: this.analyzeFeatureDistributions()
         };
     }
 
@@ -103,7 +132,9 @@ class DataLoader {
         const missing = {};
         this.features.forEach(feature => {
             const missingCount = this.dataset.filter(row => 
-                row[feature] === '' || row[feature] === null || row[feature] === undefined || row[feature] === 'NULL'
+                row[feature] === '' || row[feature] === null || row[feature] === undefined || 
+                row[feature] === 'NULL' || row[feature] === 'null' || 
+                (typeof row[feature] === 'number' && isNaN(row[feature]))
             ).length;
             missing[feature] = {
                 count: missingCount,
@@ -111,6 +142,37 @@ class DataLoader {
             };
         });
         return missing;
+    }
+
+    analyzeMissingValues() {
+        const missingValues = this.calculateMissingValues();
+        const featuresWithMissing = Object.entries(missingValues)
+            .filter(([feature, data]) => data.count > 0)
+            .sort((a, b) => b[1].count - a[1].count);
+
+        return {
+            totalMissingCells: Object.values(missingValues).reduce((sum, item) => sum + item.count, 0),
+            totalCells: this.dataset.length * this.features.length,
+            missingPercentage: (Object.values(missingValues).reduce((sum, item) => sum + item.count, 0) / 
+                             (this.dataset.length * this.features.length) * 100).toFixed(2),
+            featuresWithMissing: featuresWithMissing.slice(0, 10), // Top 10 features with missing values
+            completeFeatures: this.features.filter(feature => missingValues[feature].count === 0)
+        };
+    }
+
+    calculateDataQuality() {
+        const totalCells = this.dataset.length * this.features.length;
+        const missingCells = Object.values(this.stats.missingValues).reduce((sum, item) => sum + item.count, 0);
+        const qualityScore = ((totalCells - missingCells) / totalCells * 100).toFixed(2);
+        
+        return {
+            score: qualityScore,
+            rating: qualityScore >= 95 ? 'Excellent' : 
+                   qualityScore >= 90 ? 'Good' : 
+                   qualityScore >= 80 ? 'Fair' : 'Poor',
+            missingCells: missingCells,
+            totalCells: totalCells
+        };
     }
 
     calculateBasicStats() {
@@ -123,7 +185,9 @@ class DataLoader {
                     min: Math.min(...values),
                     max: Math.max(...values),
                     median: this.calculateMedian(values),
-                    count: values.length
+                    std: this.calculateStandardDeviation(values),
+                    count: values.length,
+                    missing: this.stats.missingValues[feature].count
                 };
             }
         });
@@ -137,6 +201,13 @@ class DataLoader {
             return ((sorted[middle - 1] + sorted[middle]) / 2).toFixed(2);
         }
         return sorted[middle].toFixed(2);
+    }
+
+    calculateStandardDeviation(values) {
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const squareDiffs = values.map(value => Math.pow(value - mean, 2));
+        const variance = squareDiffs.reduce((a, b) => a + b, 0) / values.length;
+        return Math.sqrt(variance).toFixed(2);
     }
 
     analyzeBookings() {
@@ -198,6 +269,22 @@ class DataLoader {
         };
     }
 
+    analyzeFeatureDistributions() {
+        const distributions = {};
+        
+        // Analyze key numerical features
+        ['lead_time', 'adr', 'stays_in_weekend_nights', 'stays_in_week_nights'].forEach(feature => {
+            if (this.features.includes(feature)) {
+                const values = this.dataset.map(row => row[feature]).filter(val => typeof val === 'number');
+                if (values.length > 0) {
+                    distributions[feature] = this.createDistribution(values, 8);
+                }
+            }
+        });
+        
+        return distributions;
+    }
+
     createDistribution(values, bins) {
         const min = Math.min(...values);
         const max = Math.max(...values);
@@ -209,26 +296,79 @@ class DataLoader {
             distribution[binIndex]++;
         });
         
-        return distribution;
+        return {
+            bins: distribution,
+            labels: Array.from({length: bins}, (_, i) => 
+                Math.round(min + i * binSize) + '-' + Math.round(min + (i + 1) * binSize)
+            ),
+            min: min,
+            max: max
+        };
     }
 
     getStatsHTML() {
         if (!this.stats) return '';
         
-        const totalMissing = Object.values(this.stats.missingValues).reduce((sum, item) => sum + item.count, 0);
-        const dataQuality = ((this.stats.totalRows * this.stats.totalFeatures - totalMissing) / 
-                           (this.stats.totalRows * this.stats.totalFeatures) * 100).toFixed(1);
-        
         return `
-            <div class="stat-item"><strong>Total Records Analyzed:</strong> ${this.stats.totalRows.toLocaleString()}</div>
+            <div class="stat-item"><strong>Total Records:</strong> ${this.stats.totalRows.toLocaleString()}</div>
             <div class="stat-item"><strong>Total Features:</strong> ${this.stats.totalFeatures}</div>
             <div class="stat-item"><strong>Numerical Features:</strong> ${this.stats.numericalFeatures.length}</div>
             <div class="stat-item"><strong>Categorical Features:</strong> ${this.stats.categoricalFeatures.length}</div>
-            <div class="stat-item"><strong>Data Quality Score:</strong> ${dataQuality}%</div>
+            <div class="stat-item"><strong>Data Quality Score:</strong> ${this.stats.dataQuality.score}% (${this.stats.dataQuality.rating})</div>
+            <div class="stat-item"><strong>Missing Values:</strong> ${this.stats.dataQuality.missingCells.toLocaleString()} / ${this.stats.dataQuality.totalCells.toLocaleString()} cells</div>
             <div class="stat-item"><strong>Cancellation Rate:</strong> ${this.stats.bookingAnalysis.cancellationRate}%</div>
             <div class="stat-item"><strong>Average Lead Time:</strong> ${this.stats.basicStats.lead_time ? this.stats.basicStats.lead_time.mean + ' days' : 'N/A'}</div>
             <div class="stat-item"><strong>Average ADR:</strong> $${this.stats.basicStats.adr ? this.stats.basicStats.adr.mean : 'N/A'}</div>
         `;
+    }
+
+    getMissingValuesHTML() {
+        if (!this.analysis.missingValuesAnalysis) return '';
+        
+        const missingAnalysis = this.analysis.missingValuesAnalysis;
+        
+        let html = `
+            <div class="missing-values-section">
+                <h4>Missing Values Analysis</h4>
+                <div class="missing-summary">
+                    <div class="missing-stat">
+                        <strong>Overall Data Quality:</strong> ${this.stats.dataQuality.score}%
+                    </div>
+                    <div class="missing-stat">
+                        <strong>Missing Cells:</strong> ${missingAnalysis.totalMissingCells.toLocaleString()} / ${missingAnalysis.totalCells.toLocaleString()}
+                    </div>
+                    <div class="missing-stat">
+                        <strong>Complete Features:</strong> ${missingAnalysis.completeFeatures.length} / ${this.features.length}
+                    </div>
+                </div>
+        `;
+        
+        if (missingAnalysis.featuresWithMissing.length > 0) {
+            html += `
+                <div class="missing-features">
+                    <h5>Top Features with Missing Values:</h5>
+                    <div class="missing-features-list">
+            `;
+            
+            missingAnalysis.featuresWithMissing.forEach(([feature, data]) => {
+                html += `
+                    <div class="missing-feature-item">
+                        <span class="feature-name">${feature}</span>
+                        <span class="missing-count">${data.count.toLocaleString()} (${data.percentage}%)</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `<p>No missing values found in the dataset! 🎉</p>`;
+        }
+        
+        html += `</div>`;
+        return html;
     }
 
     getDatasetInfo() {
