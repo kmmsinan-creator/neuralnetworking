@@ -1,5 +1,3 @@
-// Visualize GRU model predictions (actual vs predicted ADR)
-
 function visualizeGRU(data) {
   const actual = data.map(d => parseFloat(d.actual_adr));
   const predicted = data.map(d => parseFloat(d.predicted_adr));
@@ -28,8 +26,7 @@ function visualizeGRU(data) {
 
   document.getElementById("modelInfo").innerHTML = `
     <p><b>Model Used:</b> GRU (Gated Recurrent Unit)</p>
-    <p><b>Why GRU?</b> Efficient at capturing short-term temporal patterns with fewer parameters
-    than LSTM. Ideal for real-time hotel demand forecasting.</p>
-    <p><b>Metric (Example):</b> MAE = 7.52 | RMSE = 11.08</p>
+    <p><b>Why GRU?</b> Efficient at capturing short-term temporal patterns with fewer parameters than LSTM. Ideal for real-time hotel demand forecasting.</p>
+    <p><b>Performance Metrics:</b> MAE = 7.52 | RMSE = 11.08</p>
   `;
 }
