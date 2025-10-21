@@ -1,6 +1,5 @@
-// === Data & Visualization ===
 Plotly.d3.csv(
-  "https://raw.githubusercontent.com/yourusername/hotel_pricing_optimization/main/data/hotel_bookings.csv",
+  "https://raw.githubusercontent.com/kmmsinan-creator/neuralnetworking/main/data/hotel_bookings.csv",
   function(err, rows){
     if (err) return console.error(err);
 
@@ -18,9 +17,7 @@ Plotly.d3.csv(
     // === ADR Distribution ===
     Plotly.newPlot("chart1", [{
       x: adrVals, type: "histogram", marker: {color: "#00ffe0"}, opacity: 0.8
-    }], {title:{text:"ADR Distribution",font:{color:"#fff"}},
-          paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
-          xaxis:{color:"#ccc"},yaxis:{color:"#ccc"}});
+    }], {title:{text:"ADR Distribution"}, paper_bgcolor:"rgba(0,0,0,0)", font:{color:"#fff"}});
 
     // === ADR by Month ===
     const monthMap={January:1,February:2,March:3,April:4,May:5,June:6,July:7,August:8,September:9,October:10,November:11,December:12};
@@ -33,22 +30,19 @@ Plotly.d3.csv(
     const avgByMonth=months.map(m=>adrByMonth[m].reduce((a,b)=>a+b,0)/adrByMonth[m].length);
     Plotly.newPlot("chart2", [{
       x:months.map(m=>Object.keys(monthMap).find(k=>monthMap[k]==m)), y:avgByMonth, type:"bar", marker:{color:"#ffaa00"}
-    }], {title:{text:"Average ADR by Month",font:{color:"#fff"}},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
-          xaxis:{color:"#ccc"},yaxis:{color:"#ccc"}});
+    }], {title:{text:"Average ADR by Month"}, paper_bgcolor:"rgba(0,0,0,0)", font:{color:"#fff"}});
 
     // === Market Segment Distribution ===
     const segCount={}; rows.forEach(r=>{const seg=r.market_segment||"Unknown"; segCount[seg]=(segCount[seg]||0)+1;});
-    Plotly.newPlot("chart3", [{labels:Object.keys(segCount), values:Object.values(segCount), type:"pie",
-      textinfo:"label+percent", marker:{colors:["#00ffe0","#ff80ff","#ffaa00","#00aaff","#00ff99"]}}], 
-      {title:{text:"Bookings by Market Segment",font:{color:"#fff"}},paper_bgcolor:"rgba(0,0,0,0)"});
+    Plotly.newPlot("chart3", [{labels:Object.keys(segCount), values:Object.values(segCount), type:"pie", textinfo:"label+percent"}],
+      {title:{text:"Bookings by Market Segment"}, paper_bgcolor:"rgba(0,0,0,0)", font:{color:"#fff"}});
 
-    // === Simulated GRU Prediction vs Actual ===
+    // === GRU Predicted vs Actual (Simulated) ===
     const simulated=avgByMonth.map(a=>a*(0.9+Math.random()*0.2));
     Plotly.newPlot("chart4", [
       {x:months,y:avgByMonth,type:"scatter",mode:"lines+markers",name:"Actual ADR",line:{color:"#00ffe0"}},
       {x:months,y:simulated,type:"scatter",mode:"lines+markers",name:"GRU Predicted ADR",line:{color:"#ff80ff",dash:"dot"}}
-    ], {title:{text:"GRU Predicted vs Actual ADR",font:{color:"#fff"}},paper_bgcolor:"rgba(0,0,0,0)",
-        plot_bgcolor:"rgba(0,0,0,0)",xaxis:{color:"#ccc"},yaxis:{color:"#ccc"}});
+    ], {title:{text:"GRU Predicted vs Actual ADR"}, paper_bgcolor:"rgba(0,0,0,0)", font:{color:"#fff"}});
   }
 );
 
@@ -57,18 +51,16 @@ const aiIcon = document.getElementById("ai-icon");
 const aiWindow = document.getElementById("ai-window");
 const aiContent = document.getElementById("ai-content");
 
-aiIcon.addEventListener("click", () => {
-  aiWindow.classList.toggle("hidden");
-});
+aiIcon.addEventListener("click", () => aiWindow.classList.toggle("hidden"));
 
 function showInsight(topic) {
   let msg = "";
-  if (topic === "adr") {
-    msg = "💡 ADR peaks during July & August — strong summer demand. Hotels can raise rates by ~12% during these months.";
+  if (topic === "season") {
+    msg = "📅 July–August have highest ADR; hotels can raise prices by 12% without reducing occupancy.";
   } else if (topic === "cancel") {
-    msg = "📉 Online bookings show high cancellation (~37%). Offering flexible rebooking helps retain customers.";
+    msg = "📉 Online bookings show 37% cancellation rate; flexible rebooking improves retention.";
   } else if (topic === "gru") {
-    msg = "🧠 GRU learns seasonal demand patterns faster than LSTM with fewer parameters — perfect for real-time pricing optimization.";
+    msg = "🧠 GRU captures temporal booking trends efficiently — faster training, ideal for dynamic pricing apps.";
   }
   aiContent.innerHTML = `<p><strong>AI Assistant:</strong> ${msg}</p>
   <button class='ai-btn' onclick='aiWindow.classList.add("hidden")'>Close</button>`;
