@@ -36,13 +36,14 @@
                     <div class="upload-area">
                         <input type="file" id="fileInput" accept=".csv">
                         <p>Upload CSV file with hotel booking data</p>
-                        <div id="uploadStatus"></div>
+                        <div id="uploadStatus" class="upload-status"></div>
                     </div>
+                    <button id="analyzeBtn" class="analyze-btn">Analyze Dataset</button>
                 </div>
             </div>
 
             <!-- EDA Visualizations -->
-            <div class="eda-visuals" id="edaVisuals" style="display: none;">
+            <div class="eda-visuals" id="edaVisuals">
                 <h3>Exploratory Data Analysis</h3>
                 
                 <div class="charts-grid">
@@ -64,14 +65,12 @@
                     </div>
                 </div>
 
-                <div class="data-stats" id="dataStats">
-                    <!-- Stats will be populated here -->
-                </div>
+                <div class="data-stats" id="dataStats"></div>
             </div>
         </section>
 
         <!-- Modeling Approach Section -->
-        <section class="model-section">
+        <section class="model-section" id="modelSection">
             <h2>🤖 Modeling Approach: GRU Neural Network</h2>
             
             <div class="model-justification">
@@ -101,13 +100,13 @@
                     <h3>GRU Architecture</h3>
                     <div class="arch-diagram">
                         <div class="layer">Input Layer (8 features)</div>
-                        <div class="layer">↓</div>
+                        <div class="layer-arrow">↓</div>
                         <div class="layer gru-layer">GRU Layer (64 units)</div>
-                        <div class="layer">↓</div>
+                        <div class="layer-arrow">↓</div>
                         <div class="layer">Dropout (20%)</div>
-                        <div class="layer">↓</div>
+                        <div class="layer-arrow">↓</div>
                         <div class="layer">Dense Layer (32 units)</div>
-                        <div class="layer">↓</div>
+                        <div class="layer-arrow">↓</div>
                         <div class="layer">Output Layer (Occupancy %)</div>
                     </div>
                 </div>
@@ -115,7 +114,7 @@
         </section>
 
         <!-- Prototype Functionality Section -->
-        <section class="prototype-section">
+        <section class="prototype-section" id="prototypeSection">
             <h2>🎯 Smart Pricing Simulation</h2>
             
             <div class="simulation-container">
@@ -123,19 +122,33 @@
                     <h3>Pricing Parameters</h3>
                     
                     <div class="input-group">
-                        <label for="basePrice">Base Price ($):</label>
+                        <label for="basePrice">Base Price ($): <span id="basePriceValue">$150</span></label>
                         <input type="range" id="basePrice" min="50" max="500" value="150">
-                        <span id="basePriceValue">$150</span>
                     </div>
 
                     <div class="input-group">
-                        <label for="currentOccupancy">Current Occupancy (%):</label>
+                        <label for="currentOccupancy">Current Occupancy (%): <span id="occupancyValue">65%</span></label>
                         <input type="range" id="currentOccupancy" min="10" max="95" value="65">
-                        <span id="occupancyValue">65%</span>
                     </div>
 
                     <div class="input-group">
-                        <label for="daysAhead">Forecast Period (days):</label>
+                        <label for="season">Seasonal Demand:</label>
+                        <select id="season">
+                            <option value="low">Low (Winter)</option>
+                            <option value="medium" selected>Medium (Spring/Fall)</option>
+                            <option value="high">High (Summer)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="isHoliday">
+                            <input type="checkbox" id="isHoliday">
+                            Is it a Holiday Period?
+                        </label>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="daysAhead">Forecast Period:</label>
                         <select id="daysAhead">
                             <option value="7">Next Week</option>
                             <option value="14">2 Weeks</option>
@@ -144,13 +157,19 @@
                     </div>
 
                     <div class="feature-impacts">
-                        <h4>Feature Impacts on Prediction:</h4>
+                        <h4>Feature Impacts:</h4>
                         <div id="featureImpacts">
-                            <!-- Dynamic feature impacts will go here -->
+                            <div class="feature-impact-item">
+                                <span>Seasonality</span>
+                                <div class="impact-bar">
+                                    <div class="impact-fill neutral" style="width: 50%"></div>
+                                </div>
+                                <span>0.0%</span>
+                            </div>
                         </div>
                     </div>
 
-                    <button id="predictBtn">Run GRU Prediction</button>
+                    <button id="predictBtn" class="predict-btn">Run GRU Prediction</button>
                 </div>
 
                 <div class="results">
@@ -179,7 +198,7 @@
                     <div class="business-logic">
                         <h4>🧠 GRU Decision Logic</h4>
                         <div id="decisionLogic">
-                            <p>Model analysis will appear here...</p>
+                            <p>Upload dataset and run prediction to see GRU analysis...</p>
                         </div>
                     </div>
 
@@ -191,7 +210,7 @@
         </section>
 
         <!-- Innovation & Insight Section -->
-        <section class="innovation-section">
+        <section class="innovation-section" id="innovationSection">
             <h2>💡 Innovation & Business Insights</h2>
             
             <div class="insights-grid">
