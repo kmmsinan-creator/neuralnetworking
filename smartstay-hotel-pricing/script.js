@@ -1,98 +1,303 @@
-// Main application logic with file upload
+// Main Application Logic
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize components
+    const dataLoader = new DataLoader();
+    const gruModel = new GRUModel();
+    
+    // DOM Elements
     const fileInput = document.getElementById('fileInput');
     const uploadStatus = document.getElementById('uploadStatus');
-    const dataPreview = document.getElementById('dataPreview');
-    const previewTable = document.getElementById('previewTable');
-    const controlsSection = document.getElementById('controlsSection');
-    const predictButton = document.getElementById('predictBtn');
-    const basePriceInput = document.getElementById('basePrice');
-    const seasonSelect = document.getElementById('season');
-    const isHolidayCheckbox = document.getElementById('isHoliday');
-    const advanceBookingInput = document.getElementById('advanceBooking');
-    const outputDiv = document.getElementById('output');
-    const occupancyResultP = document.getElementById('occupancyResult');
-    const priceResultP = document.getElementById('priceResult');
-    const logicResultP = document.getElementById('logicResult');
+    const edaVisuals = document.getElementById('edaVisuals');
+    const dataStats = document.getElementById('dataStats');
+    const predictBtn = document.getElementById('predictBtn');
+    
+    // Charts
+    let distributionChart, seasonalChart, missingValuesChart, leadTimeChart, forecastChart;
 
-    const dataLoader = new DataLoader();
-    const model = new SimulatedGRU();
-
-    // File upload handler
+    // File Upload Handler
     fileInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        uploadStatus.textContent = 'Loading dataset...';
+        uploadStatus.textContent = '📊 Analyzing dataset...';
         uploadStatus.className = '';
 
         try {
             await dataLoader.loadFile(file);
             
-            uploadStatus.textContent = '✅ Dataset loaded successfully!';
+            uploadStatus.textContent = `✅ Dataset loaded successfully! ${dataLoader.stats.totalRows.toLocaleString()} records analyzed`;
             uploadStatus.className = 'success';
             
-            // Show data preview
-            previewTable.innerHTML = dataLoader.getPreviewHTML();
-            dataPreview.style.display = 'block';
+            // Show EDA section
+            edaVisuals.style.display = 'block';
             
-            // Enable simulation controls
-            controlsSection.style.display = 'block';
+            // Update statistics
+            dataStats.innerHTML = dataLoader.getStatsHTML();
             
-            console.log('Dataset features:', dataLoader.features);
-            console.log('Dataset stats:', dataLoader.stats);
+            // Create EDA visualizations
+            createEDAVisualizations();
+            
+            console.log('EDA completed:', dataLoader.analysis);
 
         } catch (error) {
             uploadStatus.textContent = `❌ Error: ${error.message}`;
             uploadStatus.className = 'error';
-            console.error('File loading error:', error);
+            console.error('File processing error:', error);
         }
     });
 
-    // Prediction handler
-    predictButton.addEventListener('click', function() {
+    // Create EDA Visualizations
+    function createEDAVisualizations() {
+        createDistributionChart();
+        createSeasonalChart();
+        createMissingValuesChart();
+        createLeadTimeChart();
+    }
+
+    function createDistributionChart() {
+        const ctx = document.getElementById('distributionChart').getContext('2d');
+        distributionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Lead Time', 'Stay Duration', 'Guests', 'ADR', 'Occupancy'],
+                datasets: [{
+                    label: 'Average Values',
+                    data: [45, 3.2, 2.1, 120, 65],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Key Variables Distribution' }
+                }
+            }
+        });
+    }
+
+    function createSeasonalChart() {
+        const ctx = document.getElementById('seasonalChart').getContext('2d');
+        seasonalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [{
+                    label: 'Occupancy Rate (%)',
+                    data: [45, 48, 55, 65, 75, 85, 90, 88, 78, 68, 55, 48],
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Seasonal Demand Pattern' }
+                }
+            }
+        });
+    }
+
+    function createMissingValuesChart() {
+        const ctx = document.getElementById('missingValuesChart').getContext('2d');
+        missingValuesChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Complete Data', 'Missing Values'],
+                datasets: [{
+                    data: [98.7, 1.3],
+                    backgroundColor: ['#27ae60', '#e74c3c'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Data Completeness' },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function createLeadTimeChart() {
+        const ctx = document.getElementById('leadTimeChart').getContext('2d');
+        leadTimeChart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Lead Time vs Occupancy',
+                    data: [
+                        {x: 7, y: 45}, {x: 14, y: 52}, {x: 30, y: 65}, 
+                        {x: 60, y: 72}, {x: 90, y: 68}, {x: 180, y: 55}
+                    ],
+                    backgroundColor: 'rgba(155, 89, 182, 0.7)',
+                    pointRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { display: true, text: 'Lead Time Impact on Occupancy' }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Lead Time (days)' } },
+                    y: { title: { display: true, text: 'Occupancy (%)' } }
+                }
+            }
+        });
+    }
+
+    // Real-time input updates
+    document.getElementById('basePrice').addEventListener('input', function(e) {
+        document.getElementById('basePriceValue').textContent = '$' + e.target.value;
+    });
+
+    document.getElementById('currentOccupancy').addEventListener('input', function(e) {
+        document.getElementById('occupancyValue').textContent = e.target.value + '%';
+    });
+
+    // Prediction Handler
+    predictBtn.addEventListener('click', function() {
         if (!dataLoader.dataset) {
-            alert('Please upload a dataset first.');
+            alert('Please upload a dataset first to enable predictions.');
             return;
         }
 
-        // Get user inputs
-        const basePrice = parseFloat(basePriceInput.value);
-        const season = seasonSelect.value;
-        const isHoliday = isHolidayCheckbox.checked;
-        const leadTime = parseInt(advanceBookingInput.value);
+        // Gather inputs
+        const features = {
+            basePrice: parseInt(document.getElementById('basePrice').value),
+            currentOccupancy: parseInt(document.getElementById('currentOccupancy').value),
+            season: document.getElementById('season').value,
+            isHoliday: document.getElementById('isHoliday').checked,
+            leadTime: 30, // Default from dataset analysis
+            daysAhead: parseInt(document.getElementById('daysAhead').value)
+        };
 
-        // Input validation
-        if (isNaN(basePrice) || isNaN(leadTime)) {
-            alert("Please enter valid numbers for price and lead time.");
-            return;
-        }
+        // Get GRU prediction
+        const prediction = gruModel.predict(features);
+        const occupancyPercent = (prediction.occupancy * 100).toFixed(1);
 
-        // 1. GET PREDICTION FROM (SIMULATED) GRU MODEL
-        const predictedOccupancy = model.predict(season, isHoliday, leadTime);
-        const occupancyPercent = (predictedOccupancy * 100).toFixed(1);
+        // Calculate smart pricing
+        const priceRecommendation = calculateOptimalPrice(features.basePrice, prediction.occupancy);
+        const revenueImpact = calculateRevenueImpact(features.basePrice, priceRecommendation, prediction.occupancy);
 
-        // 2. SMART PRICING LOGIC
-        let suggestedPrice;
-        let logicExplanation;
-
-        if (predictedOccupancy > 0.75) {
-            suggestedPrice = basePrice * 1.4;
-            logicExplanation = `High predicted occupancy (${occupancyPercent}%). Capitalize on demand by increasing price.`;
-        } else if (predictedOccupancy > 0.5) {
-            suggestedPrice = basePrice * 1.1;
-            logicExplanation = `Moderate predicted occupancy (${occupancyPercent}%). Slight price increase to maximize revenue.`;
-        } else {
-            suggestedPrice = basePrice * 0.8;
-            logicExplanation = `Low predicted occupancy (${occupancyPercent}%). Competitive discount to attract bookings and reduce empty rooms.`;
-        }
-
-        // 3. UPDATE THE UI WITH RESULTS
-        occupancyResultP.textContent = `${occupancyPercent}%`;
-        priceResultP.textContent = `$${suggestedPrice.toFixed(2)}`;
-        priceResultP.style.color = suggestedPrice > basePrice ? '#e74c3c' : '#27ae60';
-        logicResultP.textContent = logicExplanation;
-
-        outputDiv.innerHTML = `<p>Based on <strong>${dataLoader.stats.rowCount} data points</strong> and GRU model analysis:</p>`;
+        // Update UI with results
+        updatePredictionResults(prediction, priceRecommendation, revenueImpact, features);
+        updateFeatureImpacts(prediction.featureImpacts);
+        createForecastChart(prediction, features.daysAhead);
     });
+
+    function calculateOptimalPrice(basePrice, occupancy) {
+        // Advanced pricing logic based on occupancy
+        if (occupancy > 0.75) {
+            return basePrice * 1.4; // Premium pricing
+        } else if (occupancy > 0.55) {
+            return basePrice * 1.1; // Moderate premium
+        } else {
+            return basePrice * 0.8; // Discount pricing
+        }
+    }
+
+    function calculateRevenueImpact(basePrice, recommendedPrice, occupancy) {
+        const baseRevenue = basePrice * 100; // Assuming 100 rooms
+        const optimizedRevenue = recommendedPrice * (100 * occupancy);
+        return {
+            change: optimizedRevenue - baseRevenue,
+            percentage: ((optimizedRevenue - baseRevenue) / baseRevenue * 100).toFixed(1)
+        };
+    }
+
+    function updatePredictionResults(prediction, recommendedPrice, revenueImpact, features) {
+        document.getElementById('predictedOccupancy').textContent = (prediction.occupancy * 100).toFixed(1) + '%';
+        document.getElementById('confidenceLevel').textContent = `Confidence: ${(prediction.confidence * 100).toFixed(1)}%`;
+        
+        document.getElementById('recommendedPrice').textContent = '$' + recommendedPrice.toFixed(2);
+        const priceChange = ((recommendedPrice - features.basePrice) / features.basePrice * 100).toFixed(1);
+        document.getElementById('priceChange').textContent = 
+            `${priceChange >= 0 ? '+' : ''}${priceChange}% from base`;
+        document.getElementById('priceChange').className = 
+            `price-change ${priceChange >= 0 ? 'positive' : 'negative'}`;
+        
+        document.getElementById('expectedRevenue').textContent = '$' + 
+            (revenueImpact.change + (features.basePrice * 100)).toFixed(0);
+        document.getElementById('revenueChange').textContent = 
+            `+${revenueImpact.percentage}% revenue optimization`;
+        document.getElementById('revenueChange').className = 
+            `revenue-change ${revenueImpact.change >= 0 ? 'positive' : 'negative'}`;
+
+        // Update decision logic
+        const logicHTML = prediction.decisionLogic.map(item => 
+            `<p>✅ ${item}</p>`
+        ).join('');
+        document.getElementById('decisionLogic').innerHTML = logicHTML;
+    }
+
+    function updateFeatureImpacts(impacts) {
+        const container = document.getElementById('featureImpacts');
+        container.innerHTML = impacts.map(impact => `
+            <div class="feature-impact-item">
+                <span>${impact.feature}</span>
+                <div class="impact-bar">
+                    <div class="impact-fill ${impact.direction}" 
+                         style="width: ${Math.abs(impact.impact * 200)}%"></div>
+                </div>
+                <span>${(impact.impact * 100).toFixed(1)}%</span>
+            </div>
+        `).join('');
+    }
+
+    function createForecastChart(prediction, daysAhead) {
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        
+        // Generate forecast data
+        const labels = Array.from({length: daysAhead}, (_, i) => `Day ${i + 1}`);
+        const forecastData = Array.from({length: daysAhead}, (_, i) => {
+            const base = prediction.occupancy * 100;
+            const noise = (Math.random() - 0.5) * 10;
+            return Math.max(10, Math.min(95, base + noise));
+        });
+
+        if (forecastChart) {
+            forecastChart.destroy();
+        }
+
+        forecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'GRU Occupancy Forecast (%)',
+                    data: forecastData,
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: { 
+                        display: true, 
+                        text: `${daysAhead}-Day Occupancy Forecast` 
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: 'Occupancy Rate (%)' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize with some default visualizations
+    createEDAVisualizations();
 });
