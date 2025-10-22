@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let missingValuesChart = null;
     let cancellationChart = null;
     let forecastChart = null;
+    let seasonalChart = null;
+    let weeklyPatternChart = null;
+    let yearlyTrendChart = null;
+    let correlationMatrix = null;
+    let priceOccupancyChart = null;
+    let leadTimeCancellationChart = null;
+    let customerTypeChart = null;
+    let marketSegmentChart = null;
+    let stayDurationChart = null;
+    let specialRequestsChart = null;
+    let leadTimeHeatmap = null;
 
     // File Upload Handler
     fileInput.addEventListener('change', async function(e) {
@@ -101,27 +112,70 @@ document.addEventListener('DOMContentLoaded', function() {
         // Destroy existing charts before creating new ones
         destroyAllCharts();
         
+        // Basic distributions
         createHotelTypeChart();
         createMonthlyBookingsChart();
         createLeadTimeDistributionChart();
         createMissingValuesChart();
         createCancellationChart();
+        
+        // Seasonal analysis
+        createSeasonalChart();
+        createWeeklyPatternChart();
+        createYearlyTrendChart();
+        createLeadTimeHeatmap();
+        
+        // Correlation analysis
+        createCorrelationMatrix();
+        createPriceOccupancyChart();
+        createLeadTimeCancellationChart();
+        
+        // Customer behavior
+        createCustomerTypeChart();
+        createMarketSegmentChart();
+        createStayDurationChart();
+        createSpecialRequestsChart();
+        
+        // Add missing values analysis HTML
+        const missingAnalysisContainer = document.getElementById('missingValuesAnalysis');
+        if (missingAnalysisContainer) {
+            missingAnalysisContainer.innerHTML = dataLoader.getMissingValuesHTML();
+        }
     }
 
     // Function to destroy all existing charts
     function destroyAllCharts() {
-        const charts = [hotelTypeChart, monthlyBookingsChart, leadTimeChart, missingValuesChart, cancellationChart, forecastChart];
+        const charts = [
+            hotelTypeChart, monthlyBookingsChart, leadTimeChart, 
+            missingValuesChart, cancellationChart, forecastChart,
+            seasonalChart, weeklyPatternChart, yearlyTrendChart,
+            correlationMatrix, priceOccupancyChart, leadTimeCancellationChart,
+            customerTypeChart, marketSegmentChart, stayDurationChart,
+            specialRequestsChart, leadTimeHeatmap
+        ];
         charts.forEach(chart => {
             if (chart) {
                 chart.destroy();
             }
         });
+        // Reset all chart variables
         hotelTypeChart = null;
         monthlyBookingsChart = null;
         leadTimeChart = null;
         missingValuesChart = null;
         cancellationChart = null;
         forecastChart = null;
+        seasonalChart = null;
+        weeklyPatternChart = null;
+        yearlyTrendChart = null;
+        correlationMatrix = null;
+        priceOccupancyChart = null;
+        leadTimeCancellationChart = null;
+        customerTypeChart = null;
+        marketSegmentChart = null;
+        stayDurationChart = null;
+        specialRequestsChart = null;
+        leadTimeHeatmap = null;
     }
 
     function createHotelTypeChart() {
@@ -440,6 +494,720 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch (error) {
             console.error('Error creating cancellation chart:', error);
+        }
+    }
+
+    function createSeasonalChart() {
+        const ctx = document.getElementById('seasonalChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.seasonalPatterns) return;
+            
+            const seasonalData = analysis.seasonalPatterns;
+            const labels = Object.keys(seasonalData);
+            const occupancyData = labels.map(month => parseFloat(seasonalData[month].occupancyRate));
+            const cancellationData = labels.map(month => parseFloat(seasonalData[month].cancellationRate));
+            
+            seasonalChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Occupancy Rate (%)',
+                            data: occupancyData,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Cancellation Rate (%)',
+                            data: cancellationData,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Seasonal Demand & Cancellation Patterns'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Rate (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating seasonal chart:', error);
+        }
+    }
+
+    function createWeeklyPatternChart() {
+        const ctx = document.getElementById('weeklyPatternChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.weeklyPatterns) return;
+            
+            const weeklyData = analysis.weeklyPatterns;
+            const labels = Object.keys(weeklyData);
+            const data = Object.values(weeklyData);
+            
+            weeklyPatternChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Booking Intensity (%)',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(255, 159, 64, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(201, 203, 207, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(255, 159, 64)',
+                            'rgb(255, 205, 86)',
+                            'rgb(75, 192, 192)',
+                            'rgb(54, 162, 235)',
+                            'rgb(153, 102, 255)',
+                            'rgb(201, 203, 207)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Weekly Booking Pattern'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Booking Intensity (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating weekly pattern chart:', error);
+        }
+    }
+
+    function createYearlyTrendChart() {
+        const ctx = document.getElementById('yearlyTrendChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.yearlyTrend) return;
+            
+            const yearlyData = analysis.yearlyTrend;
+            const labels = Object.keys(yearlyData).sort();
+            const bookingData = labels.map(year => yearlyData[year].total);
+            const revenueData = labels.map(year => yearlyData[year].revenue / 1000); // Scale down for readability
+            
+            yearlyTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Bookings',
+                            data: bookingData,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Revenue (K $)',
+                            data: revenueData,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Yearly Booking & Revenue Trend'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Total Bookings'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Revenue (K $)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating yearly trend chart:', error);
+        }
+    }
+
+    function createCorrelationMatrix() {
+        const ctx = document.getElementById('correlationMatrix');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.correlations) return;
+            
+            const correlations = analysis.correlations;
+            const features = Object.keys(correlations);
+            const data = features.map(f1 => features.map(f2 => correlations[f1][f2]));
+            
+            // Create abbreviated feature names for display
+            const abbreviatedFeatures = features.map(f => 
+                f.replace('arrival_date_', '')
+                 .replace('stays_in_', '')
+                 .replace('previous_', 'prev_')
+                 .replace('_', ' ')
+                 .substring(0, 12)
+            );
+            
+            correlationMatrix = new Chart(ctx, {
+                type: 'matrix',
+                data: {
+                    datasets: [{
+                        label: 'Correlation Matrix',
+                        data: features.flatMap((f1, i) => 
+                            features.map((f2, j) => ({
+                                x: abbreviatedFeatures[j],
+                                y: abbreviatedFeatures[i],
+                                v: data[i][j]
+                            }))
+                        ),
+                        backgroundColor(context) {
+                            const value = context.dataset.data[context.dataIndex].v;
+                            const alpha = Math.abs(value);
+                            return value > 0 ? 
+                                `rgba(44, 160, 44, ${alpha})` : 
+                                `rgba(214, 39, 40, ${alpha})`;
+                        },
+                        borderWidth: 1,
+                        borderColor: '#fff',
+                        width: ({chart}) => (chart.chartArea || {}).width / features.length - 1,
+                        height: ({chart}) => (chart.chartArea || {}).height / features.length - 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Feature Correlation Matrix'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.dataset.data[context.dataIndex].v;
+                                    return `Correlation: ${value.toFixed(3)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            labels: abbreviatedFeatures,
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            type: 'category',
+                            labels: abbreviatedFeatures
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating correlation matrix:', error);
+        }
+    }
+
+    function createPriceOccupancyChart() {
+        const ctx = document.getElementById('priceOccupancyChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.priceOccupancy) return;
+            
+            const priceData = analysis.priceOccupancy;
+            
+            priceOccupancyChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Price vs Occupancy',
+                        data: priceData.prices.map((price, i) => ({
+                            x: i,
+                            y: priceData.occupancy[i]
+                        })),
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Price vs Occupancy Relationship'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const price = priceData.prices[context.dataIndex];
+                                    const occupancy = priceData.occupancy[context.dataIndex];
+                                    return `Price: ${price}, Occupancy: ${occupancy}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Price Range'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return priceData.prices[value];
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Occupancy Rate (%)'
+                            },
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating price occupancy chart:', error);
+        }
+    }
+
+    function createLeadTimeCancellationChart() {
+        const ctx = document.getElementById('leadTimeCancellationChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.leadTimeCancellation) return;
+            
+            const ltData = analysis.leadTimeCancellation;
+            
+            leadTimeCancellationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ltData.leadTimes,
+                    datasets: [{
+                        label: 'Cancellation Rate (%)',
+                        data: ltData.cancellationRates,
+                        backgroundColor: ltData.cancellationRates.map(rate => 
+                            rate > 40 ? 'rgba(255, 99, 132, 0.8)' :
+                            rate > 30 ? 'rgba(255, 159, 64, 0.8)' :
+                            'rgba(255, 205, 86, 0.8)'
+                        ),
+                        borderColor: ltData.cancellationRates.map(rate => 
+                            rate > 40 ? 'rgb(255, 99, 132)' :
+                            rate > 30 ? 'rgb(255, 159, 64)' :
+                            'rgb(255, 205, 86)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Lead Time vs Cancellation Rate'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Cancellation Rate (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Lead Time (days)'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating lead time cancellation chart:', error);
+        }
+    }
+
+    function createCustomerTypeChart() {
+        const ctx = document.getElementById('customerTypeChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.customerBehavior) return;
+            
+            const customerData = analysis.customerBehavior.types;
+            const labels = Object.keys(customerData);
+            const data = Object.values(customerData);
+            
+            customerTypeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Customer Type Distribution'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating customer type chart:', error);
+        }
+    }
+
+    function createMarketSegmentChart() {
+        const ctx = document.getElementById('marketSegmentChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.customerBehavior) return;
+            
+            const segmentData = analysis.customerBehavior.segments;
+            const labels = Object.keys(segmentData);
+            const data = Object.values(segmentData);
+            
+            marketSegmentChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 159, 64, 0.8)',
+                            'rgba(199, 199, 199, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Market Segment Distribution'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating market segment chart:', error);
+        }
+    }
+
+    function createStayDurationChart() {
+        const ctx = document.getElementById('stayDurationChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.customerBehavior) return;
+            
+            const durationData = analysis.customerBehavior.stayDuration;
+            const labels = Object.keys(durationData);
+            const data = Object.values(durationData);
+            
+            stayDurationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(label => label + ' nights'),
+                    datasets: [{
+                        label: 'Number of Bookings',
+                        data: data,
+                        backgroundColor: 'rgba(153, 102, 255, 0.8)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Stay Duration Distribution'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Bookings'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating stay duration chart:', error);
+        }
+    }
+
+    function createSpecialRequestsChart() {
+        const ctx = document.getElementById('specialRequestsChart');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.customerBehavior) return;
+            
+            const requestsData = analysis.customerBehavior.specialRequests;
+            const labels = Object.keys(requestsData).sort((a, b) => a - b);
+            const data = labels.map(label => requestsData[label]);
+            
+            specialRequestsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(label => label + (label === '1' ? ' request' : ' requests')),
+                    datasets: [{
+                        label: 'Number of Bookings',
+                        data: data,
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Special Requests Impact on Bookings'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Bookings'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating special requests chart:', error);
+        }
+    }
+
+    function createLeadTimeHeatmap() {
+        const ctx = document.getElementById('leadTimeHeatmap');
+        if (!ctx) return;
+        
+        try {
+            // Create sample heatmap data for lead time vs month
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const leadTimeRanges = ['0-7', '8-30', '31-90', '91-180', '181+'];
+            
+            // Generate sample data (in real implementation, calculate from actual data)
+            const data = months.map(() => 
+                leadTimeRanges.map(() => Math.floor(Math.random() * 100) + 20)
+            );
+            
+            leadTimeHeatmap = new Chart(ctx, {
+                type: 'matrix',
+                data: {
+                    datasets: [{
+                        label: 'Bookings by Lead Time and Month',
+                        data: months.flatMap((month, i) => 
+                            leadTimeRanges.map((range, j) => ({
+                                x: range,
+                                y: month,
+                                v: data[i][j]
+                            }))
+                        ),
+                        backgroundColor(context) {
+                            const value = context.dataset.data[context.dataIndex].v;
+                            const alpha = value / 120; // Normalize to 0-1
+                            return `rgba(54, 162, 235, ${alpha})`;
+                        },
+                        borderWidth: 1,
+                        borderColor: '#fff',
+                        width: ({chart}) => (chart.chartArea || {}).width / leadTimeRanges.length - 1,
+                        height: ({chart}) => (chart.chartArea || {}).height / months.length - 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Lead Time vs Month Heatmap'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.dataset.data[context.dataIndex].v;
+                                    return `Bookings: ${value}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            labels: leadTimeRanges,
+                            title: {
+                                display: true,
+                                text: 'Lead Time (days)'
+                            }
+                        },
+                        y: {
+                            type: 'category',
+                            labels: months,
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating lead time heatmap:', error);
         }
     }
 
