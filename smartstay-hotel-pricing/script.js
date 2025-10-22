@@ -503,10 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.seasonalPatterns) {
-                console.warn('Seasonal patterns data not available');
-                return;
-            }
+            if (!analysis || !analysis.seasonalPatterns) return;
             
             const seasonalData = analysis.seasonalPatterns;
             const labels = Object.keys(seasonalData);
@@ -570,10 +567,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.weeklyPatterns) {
-                console.warn('Weekly patterns data not available');
-                return;
-            }
+            if (!analysis || !analysis.weeklyPatterns) return;
             
             const weeklyData = analysis.weeklyPatterns;
             const labels = Object.keys(weeklyData);
@@ -639,10 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.yearlyTrend) {
-                console.warn('Yearly trend data not available');
-                return;
-            }
+            if (!analysis || !analysis.yearlyTrend) return;
             
             const yearlyData = analysis.yearlyTrend;
             const labels = Object.keys(yearlyData).sort();
@@ -715,29 +706,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createCorrelationMatrix() {
         const ctx = document.getElementById('correlationMatrix');
-        if (!ctx) {
-            console.error('Correlation matrix canvas not found');
-            return;
-        }
+        if (!ctx) return;
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.correlations) {
-                console.warn('Correlation data not available');
-                // Create sample correlation data for demonstration
-                createSampleCorrelationMatrix(ctx);
-                return;
-            }
+            if (!analysis || !analysis.correlations) return;
             
             const correlations = analysis.correlations;
             const features = Object.keys(correlations);
-            
-            if (features.length === 0) {
-                console.warn('No correlation features available');
-                createSampleCorrelationMatrix(ctx);
-                return;
-            }
-            
             const data = features.map(f1 => features.map(f2 => correlations[f1][f2]));
             
             // Create abbreviated feature names for display
@@ -756,13 +732,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         label: 'Correlation Matrix',
                         data: features.flatMap((f1, i) => 
                             features.map((f2, j) => ({
-                                row: abbreviatedFeatures[i],
-                                column: abbreviatedFeatures[j],
-                                value: data[i][j]
+                                x: abbreviatedFeatures[j],
+                                y: abbreviatedFeatures[i],
+                                v: data[i][j]
                             }))
                         ),
                         backgroundColor(context) {
-                            const value = context.dataset.data[context.dataIndex].value;
+                            const value = context.dataset.data[context.dataIndex].v;
                             const alpha = Math.abs(value);
                             return value > 0 ? 
                                 `rgba(44, 160, 44, ${alpha})` : 
@@ -785,23 +761,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const value = context.dataset.data[context.dataIndex].value;
+                                    const value = context.dataset.data[context.dataIndex].v;
                                     return `Correlation: ${value.toFixed(3)}`;
                                 }
                             }
-                        },
-                        legend: {
-                            display: false
                         }
                     },
                     scales: {
                         x: {
                             type: 'category',
                             labels: abbreviatedFeatures,
-                            title: {
-                                display: true,
-                                text: 'Features'
-                            },
                             ticks: {
                                 maxRotation: 45,
                                 minRotation: 45
@@ -809,103 +778,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         y: {
                             type: 'category',
-                            labels: abbreviatedFeatures,
-                            title: {
-                                display: true,
-                                text: 'Features'
-                            }
+                            labels: abbreviatedFeatures
                         }
                     }
                 }
             });
         } catch (error) {
             console.error('Error creating correlation matrix:', error);
-            createSampleCorrelationMatrix(ctx);
         }
-    }
-
-    function createSampleCorrelationMatrix(ctx) {
-        // Create sample correlation data for demonstration
-        const features = ['Lead Time', 'Adults', 'Children', 'Weekend Nights', 'Week Nights', 'Price', 'Special Req'];
-        const data = [
-            [1.00, 0.15, -0.08, 0.25, 0.18, -0.32, 0.12],
-            [0.15, 1.00, 0.45, 0.22, 0.31, 0.28, 0.09],
-            [-0.08, 0.45, 1.00, 0.11, 0.19, 0.15, 0.21],
-            [0.25, 0.22, 0.11, 1.00, 0.65, -0.18, 0.14],
-            [0.18, 0.31, 0.19, 0.65, 1.00, -0.22, 0.17],
-            [-0.32, 0.28, 0.15, -0.18, -0.22, 1.00, -0.08],
-            [0.12, 0.09, 0.21, 0.14, 0.17, -0.08, 1.00]
-        ];
-        
-        correlationMatrix = new Chart(ctx, {
-            type: 'matrix',
-            data: {
-                datasets: [{
-                    label: 'Correlation Matrix',
-                    data: features.flatMap((f1, i) => 
-                        features.map((f2, j) => ({
-                            row: f1,
-                            column: f2,
-                            value: data[i][j]
-                        }))
-                    ),
-                    backgroundColor(context) {
-                        const value = context.dataset.data[context.dataIndex].value;
-                        const alpha = Math.abs(value);
-                        return value > 0 ? 
-                            `rgba(44, 160, 44, ${alpha})` : 
-                            `rgba(214, 39, 40, ${alpha})`;
-                    },
-                    borderWidth: 1,
-                    borderColor: '#fff',
-                    width: ({chart}) => (chart.chartArea || {}).width / features.length - 1,
-                    height: ({chart}) => (chart.chartArea || {}).height / features.length - 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: { 
-                        display: true, 
-                        text: 'Feature Correlation Matrix (Sample Data)'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.dataset.data[context.dataIndex].value;
-                                return `Correlation: ${value.toFixed(3)}`;
-                            }
-                        }
-                    },
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    x: {
-                        type: 'category',
-                        labels: features,
-                        title: {
-                            display: true,
-                            text: 'Features'
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    },
-                    y: {
-                        type: 'category',
-                        labels: features,
-                        title: {
-                            display: true,
-                            text: 'Features'
-                        }
-                    }
-                }
-            }
-        });
     }
 
     function createPriceOccupancyChart() {
@@ -914,10 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.priceOccupancy) {
-                console.warn('Price occupancy data not available');
-                return;
-            }
+            if (!analysis || !analysis.priceOccupancy) return;
             
             const priceData = analysis.priceOccupancy;
             
@@ -927,12 +804,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         label: 'Price vs Occupancy',
                         data: priceData.prices.map((price, i) => ({
-                            x: price,
+                            x: i,
                             y: priceData.occupancy[i]
                         })),
                         backgroundColor: 'rgba(75, 192, 192, 0.8)',
-                        pointRadius: 6,
-                        pointHoverRadius: 8
+                        pointRadius: 8,
+                        pointHoverRadius: 10
                     }]
                 },
                 options: {
@@ -946,7 +823,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Price: $${context.parsed.x}, Occupancy: ${context.parsed.y}%`;
+                                    const price = priceData.prices[context.dataIndex];
+                                    const occupancy = priceData.occupancy[context.dataIndex];
+                                    return `Price: ${price}, Occupancy: ${occupancy}%`;
                                 }
                             }
                         }
@@ -955,9 +834,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         x: {
                             title: {
                                 display: true,
-                                text: 'Price ($)'
+                                text: 'Price Range'
                             },
-                            beginAtZero: true
+                            ticks: {
+                                callback: function(value) {
+                                    return priceData.prices[value];
+                                }
+                            }
                         },
                         y: {
                             title: {
@@ -981,10 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.leadTimeCancellation) {
-                console.warn('Lead time cancellation data not available');
-                return;
-            }
+            if (!analysis || !analysis.leadTimeCancellation) return;
             
             const ltData = analysis.leadTimeCancellation;
             
@@ -1046,10 +926,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.customerBehavior) {
-                console.warn('Customer behavior data not available');
-                return;
-            }
+            if (!analysis || !analysis.customerBehavior) return;
             
             const customerData = analysis.customerBehavior.types;
             const labels = Object.keys(customerData);
@@ -1103,10 +980,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.customerBehavior) {
-                console.warn('Customer behavior data not available');
-                return;
-            }
+            if (!analysis || !analysis.customerBehavior) return;
             
             const segmentData = analysis.customerBehavior.segments;
             const labels = Object.keys(segmentData);
@@ -1164,10 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.customerBehavior) {
-                console.warn('Customer behavior data not available');
-                return;
-            }
+            if (!analysis || !analysis.customerBehavior) return;
             
             const durationData = analysis.customerBehavior.stayDuration;
             const labels = Object.keys(durationData);
@@ -1216,10 +1087,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const analysis = dataLoader.analysis;
-            if (!analysis || !analysis.customerBehavior) {
-                console.warn('Customer behavior data not available');
-                return;
-            }
+            if (!analysis || !analysis.customerBehavior) return;
             
             const requestsData = analysis.customerBehavior.specialRequests;
             const labels = Object.keys(requestsData).sort((a, b) => a - b);
@@ -1266,31 +1134,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createLeadTimeHeatmap() {
         const ctx = document.getElementById('leadTimeHeatmap');
-        if (!ctx) {
-            console.error('Lead time heatmap canvas not found');
-            return;
-        }
+        if (!ctx) return;
         
         try {
             // Create sample heatmap data for lead time vs month
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const leadTimeRanges = ['0-7 days', '8-30 days', '31-90 days', '91-180 days', '181+ days'];
+            const leadTimeRanges = ['0-7', '8-30', '31-90', '91-180', '181+'];
             
-            // Generate realistic sample data
-            const data = [
-                [45, 38, 28, 22, 18], // Jan
-                [42, 35, 26, 20, 16], // Feb
-                [48, 40, 32, 25, 20], // Mar
-                [52, 45, 38, 30, 24], // Apr
-                [58, 52, 45, 38, 30], // May
-                [65, 58, 50, 42, 35], // Jun
-                [72, 65, 55, 45, 38], // Jul
-                [68, 60, 52, 44, 36], // Aug
-                [55, 48, 40, 32, 26], // Sep
-                [50, 42, 35, 28, 22], // Oct
-                [46, 38, 30, 24, 19], // Nov
-                [52, 45, 36, 29, 23]  // Dec
-            ];
+            // Generate sample data (in real implementation, calculate from actual data)
+            const data = months.map(() => 
+                leadTimeRanges.map(() => Math.floor(Math.random() * 100) + 20)
+            );
             
             leadTimeHeatmap = new Chart(ctx, {
                 type: 'matrix',
@@ -1299,15 +1153,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         label: 'Bookings by Lead Time and Month',
                         data: months.flatMap((month, i) => 
                             leadTimeRanges.map((range, j) => ({
-                                row: month,
-                                column: range,
-                                value: data[i][j]
+                                x: range,
+                                y: month,
+                                v: data[i][j]
                             }))
                         ),
                         backgroundColor(context) {
-                            const value = context.dataset.data[context.dataIndex].value;
-                            const alpha = value / 80; // Normalize to 0-1
-                            return `rgba(54, 162, 235, ${Math.min(1, alpha)})`;
+                            const value = context.dataset.data[context.dataIndex].v;
+                            const alpha = value / 120; // Normalize to 0-1
+                            return `rgba(54, 162, 235, ${alpha})`;
                         },
                         borderWidth: 1,
                         borderColor: '#fff',
@@ -1321,18 +1175,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     plugins: {
                         title: { 
                             display: true, 
-                            text: 'Booking Lead Time Heatmap (Number of Bookings)'
+                            text: 'Lead Time vs Month Heatmap'
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const value = context.dataset.data[context.dataIndex].value;
+                                    const value = context.dataset.data[context.dataIndex].v;
                                     return `Bookings: ${value}`;
                                 }
                             }
-                        },
-                        legend: {
-                            display: false
                         }
                     },
                     scales: {
@@ -1341,11 +1192,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             labels: leadTimeRanges,
                             title: {
                                 display: true,
-                                text: 'Lead Time'
-                            },
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
+                                text: 'Lead Time (days)'
                             }
                         },
                         y: {
