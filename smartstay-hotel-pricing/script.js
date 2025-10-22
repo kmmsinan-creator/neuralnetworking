@@ -709,7 +709,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const correlations = analysis.correlations;
             const features = Object.keys(correlations);
-            const data = features.map(f1 => features.map(f2 => correlations[f1][f2]));
             
             // Create abbreviated feature names for display
             const abbreviatedFeatures = features.map(f => 
@@ -720,29 +719,40 @@ document.addEventListener('DOMContentLoaded', function() {
                  .substring(0, 12)
             );
             
+            // Create data for bubble chart (alternative to matrix)
+            const bubbleData = [];
+            features.forEach((f1, i) => {
+                features.forEach((f2, j) => {
+                    if (i !== j) { // Skip self-correlation
+                        bubbleData.push({
+                            x: abbreviatedFeatures[i],
+                            y: abbreviatedFeatures[j],
+                            r: Math.abs(correlations[f1][f2]) * 15, // Bubble size based on correlation strength
+                            correlation: correlations[f1][f2]
+                        });
+                    }
+                });
+            });
+            
             correlationMatrix = new Chart(ctx, {
-                type: 'matrix',
+                type: 'bubble',
                 data: {
                     datasets: [{
-                        label: 'Correlation Matrix',
-                        data: features.flatMap((f1, i) => 
-                            features.map((f2, j) => ({
-                                x: abbreviatedFeatures[j],
-                                y: abbreviatedFeatures[i],
-                                v: data[i][j]
-                            }))
-                        ),
-                        backgroundColor(context) {
-                            const value = context.dataset.data[context.dataIndex].v;
-                            const alpha = Math.abs(value);
+                        label: 'Feature Correlations',
+                        data: bubbleData,
+                        backgroundColor: function(context) {
+                            const value = context.raw.correlation;
                             return value > 0 ? 
-                                `rgba(44, 160, 44, ${alpha})` : 
-                                `rgba(214, 39, 40, ${alpha})`;
+                                'rgba(44, 160, 44, 0.7)' : 
+                                'rgba(214, 39, 40, 0.7)';
                         },
-                        borderWidth: 1,
-                        borderColor: '#fff',
-                        width: ({chart}) => (chart.chartArea || {}).width / features.length - 1,
-                        height: ({chart}) => (chart.chartArea || {}).height / features.length - 1
+                        borderColor: function(context) {
+                            const value = context.raw.correlation;
+                            return value > 0 ? 
+                                'rgba(44, 160, 44, 1)' : 
+                                'rgba(214, 39, 40, 1)';
+                        },
+                        borderWidth: 1
                     }]
                 },
                 options: {
@@ -751,21 +761,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     plugins: {
                         title: { 
                             display: true, 
-                            text: 'Feature Correlation Matrix'
+                            text: 'Feature Correlation Matrix (Bubble Chart)'
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const value = context.dataset.data[context.dataIndex].v;
-                                    return `Correlation: ${value.toFixed(3)}`;
+                                    const correlation = context.raw.correlation;
+                                    return `Correlation: ${correlation.toFixed(3)}`;
                                 }
                             }
+                        },
+                        legend: {
+                            display: false
                         }
                     },
                     scales: {
                         x: {
                             type: 'category',
-                            labels: abbreviatedFeatures,
+                            title: {
+                                display: true,
+                                text: 'Features'
+                            },
                             ticks: {
                                 maxRotation: 45,
                                 minRotation: 45
@@ -773,13 +789,98 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         y: {
                             type: 'category',
-                            labels: abbreviatedFeatures
+                            title: {
+                                display: true,
+                                text: 'Features'
+                            }
                         }
                     }
                 }
             });
         } catch (error) {
             console.error('Error creating correlation matrix:', error);
+            // Fallback to a simple bar chart
+            createCorrelationBarChart();
+        }
+    }
+
+    function createCorrelationBarChart() {
+        const ctx = document.getElementById('correlationMatrix');
+        if (!ctx) return;
+        
+        try {
+            const analysis = dataLoader.analysis;
+            if (!analysis || !analysis.correlations) return;
+            
+            const correlations = analysis.correlations;
+            const features = Object.keys(correlations);
+            
+            // Get top correlations (excluding self-correlations)
+            const correlationPairs = [];
+            features.forEach((f1, i) => {
+                features.forEach((f2, j) => {
+                    if (i < j) { // Avoid duplicates
+                        correlationPairs.push({
+                            pair: `${f1.substring(0, 10)} - ${f2.substring(0, 10)}`,
+                            correlation: correlations[f1][f2]
+                        });
+                    }
+                });
+            });
+            
+            // Sort by absolute correlation and take top 15
+            correlationPairs.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+            const topCorrelations = correlationPairs.slice(0, 15);
+            
+            const labels = topCorrelations.map(item => item.pair);
+            const data = topCorrelations.map(item => item.correlation);
+            
+            correlationMatrix = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Correlation Coefficient',
+                        data: data,
+                        backgroundColor: data.map(corr => 
+                            corr > 0 ? 'rgba(44, 160, 44, 0.8)' : 'rgba(214, 39, 40, 0.8)'
+                        ),
+                        borderColor: data.map(corr => 
+                            corr > 0 ? 'rgba(44, 160, 44, 1)' : 'rgba(214, 39, 40, 1)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Top Feature Correlations'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: -1,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: 'Correlation Coefficient'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating correlation bar chart:', error);
         }
     }
 
@@ -1132,36 +1233,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!ctx) return;
         
         try {
-            // Create sample heatmap data for lead time vs month
+            // Create sample heatmap data for lead time vs month using a bubble chart
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const leadTimeRanges = ['0-7', '8-30', '31-90', '91-180', '181+'];
             
-            // Generate sample data (in real implementation, calculate from actual data)
-            const data = months.map(() => 
-                leadTimeRanges.map(() => Math.floor(Math.random() * 100) + 20)
+            // Generate sample data
+            const data = months.flatMap((month, i) => 
+                leadTimeRanges.map((range, j) => ({
+                    x: range,
+                    y: month,
+                    r: Math.floor(Math.random() * 20) + 5, // Bubble size represents booking count
+                    bookings: Math.floor(Math.random() * 100) + 20
+                }))
             );
             
             leadTimeHeatmap = new Chart(ctx, {
-                type: 'matrix',
+                type: 'bubble',
                 data: {
                     datasets: [{
                         label: 'Bookings by Lead Time and Month',
-                        data: months.flatMap((month, i) => 
-                            leadTimeRanges.map((range, j) => ({
-                                x: range,
-                                y: month,
-                                v: data[i][j]
-                            }))
-                        ),
-                        backgroundColor(context) {
-                            const value = context.dataset.data[context.dataIndex].v;
-                            const alpha = value / 120; // Normalize to 0-1
-                            return `rgba(54, 162, 235, ${alpha})`;
-                        },
-                        borderWidth: 1,
-                        borderColor: '#fff',
-                        width: ({chart}) => (chart.chartArea || {}).width / leadTimeRanges.length - 1,
-                        height: ({chart}) => (chart.chartArea || {}).height / months.length - 1
+                        data: data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
                     }]
                 },
                 options: {
@@ -1170,13 +1264,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     plugins: {
                         title: { 
                             display: true, 
-                            text: 'Lead Time vs Month Heatmap'
+                            text: 'Lead Time vs Month Heatmap (Bubble Chart)'
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const value = context.dataset.data[context.dataIndex].v;
-                                    return `Bookings: ${value}`;
+                                    const bookings = context.raw.bookings;
+                                    return `Bookings: ${bookings}`;
                                 }
                             }
                         }
@@ -1184,7 +1278,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     scales: {
                         x: {
                             type: 'category',
-                            labels: leadTimeRanges,
                             title: {
                                 display: true,
                                 text: 'Lead Time (days)'
@@ -1192,7 +1285,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         y: {
                             type: 'category',
-                            labels: months,
                             title: {
                                 display: true,
                                 text: 'Month'
@@ -1203,6 +1295,62 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch (error) {
             console.error('Error creating lead time heatmap:', error);
+            // Fallback to a simple bar chart
+            createLeadTimeBarChart();
+        }
+    }
+
+    function createLeadTimeBarChart() {
+        const ctx = document.getElementById('leadTimeHeatmap');
+        if (!ctx) return;
+        
+        try {
+            // Create a grouped bar chart as fallback
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+            const leadTimeRanges = ['0-7', '8-30', '31-90'];
+            
+            const datasets = leadTimeRanges.map((range, index) => ({
+                label: range + ' days',
+                data: months.map(() => Math.floor(Math.random() * 50) + 10),
+                backgroundColor: `rgba(${54 + index * 40}, 162, 235, 0.8)`,
+                borderColor: `rgba(${54 + index * 40}, 162, 235, 1)`,
+                borderWidth: 1
+            }));
+            
+            leadTimeHeatmap = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Lead Time Distribution by Month'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Bookings'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error creating lead time bar chart:', error);
         }
     }
 
@@ -1449,9 +1597,36 @@ document.addEventListener('DOMContentLoaded', function() {
             padding: 40px;
             color: #6c757d;
             font-style: italic;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
         }
         .error-message {
             color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: none;
+        }
+        .scroll-to-top:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
     `;
     document.head.appendChild(style);
