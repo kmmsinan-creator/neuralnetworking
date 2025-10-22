@@ -135,30 +135,25 @@ document.addEventListener('DOMContentLoaded', function() {
         createMarketSegmentChart();
         createStayDurationChart();
         createSpecialRequestsChart();
-        
-        // Add missing values analysis HTML
-        const missingAnalysisContainer = document.getElementById('missingValuesAnalysis');
-        if (missingAnalysisContainer) {
-            missingAnalysisContainer.innerHTML = dataLoader.getMissingValuesHTML();
-        }
     }
 
     // Function to destroy all existing charts
     function destroyAllCharts() {
         const charts = [
-            hotelTypeChart, monthlyBookingsChart, leadTimeChart, 
-            missingValuesChart, cancellationChart, forecastChart,
-            seasonalChart, weeklyPatternChart, yearlyTrendChart,
-            correlationMatrix, priceOccupancyChart, leadTimeCancellationChart,
-            customerTypeChart, marketSegmentChart, stayDurationChart,
-            specialRequestsChart, leadTimeHeatmap
+            hotelTypeChart, monthlyBookingsChart, leadTimeChart, missingValuesChart, 
+            cancellationChart, forecastChart, seasonalChart, weeklyPatternChart,
+            yearlyTrendChart, correlationMatrix, priceOccupancyChart, leadTimeCancellationChart,
+            customerTypeChart, marketSegmentChart, stayDurationChart, specialRequestsChart,
+            leadTimeHeatmap
         ];
+        
         charts.forEach(chart => {
             if (chart) {
                 chart.destroy();
             }
         });
-        // Reset all chart variables
+        
+        // Reset all chart variables to null
         hotelTypeChart = null;
         monthlyBookingsChart = null;
         leadTimeChart = null;
@@ -507,8 +502,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const seasonalData = analysis.seasonalPatterns;
             const labels = Object.keys(seasonalData);
-            const occupancyData = labels.map(month => parseFloat(seasonalData[month].occupancyRate));
-            const cancellationData = labels.map(month => parseFloat(seasonalData[month].cancellationRate));
+            const occupancyData = labels.map(month => parseFloat(seasonalData[month].occupancyRate || 0));
+            const cancellationData = labels.map(month => parseFloat(seasonalData[month].cancellationRate || 0));
             
             seasonalChart = new Chart(ctx, {
                 type: 'line',
@@ -637,8 +632,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const yearlyData = analysis.yearlyTrend;
             const labels = Object.keys(yearlyData).sort();
-            const bookingData = labels.map(year => yearlyData[year].total);
-            const revenueData = labels.map(year => yearlyData[year].revenue / 1000); // Scale down for readability
+            const bookingData = labels.map(year => yearlyData[year].total || 0);
+            const revenueData = labels.map(year => (yearlyData[year].revenue || 0) / 1000); // Scale down for readability
             
             yearlyTrendChart = new Chart(ctx, {
                 type: 'line',
@@ -953,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             'rgba(153, 102, 255, 1)'
                         ],
                         borderWidth: 2
-                    }]
+                }]
                 },
                 options: {
                     responsive: true,
@@ -1460,6 +1455,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(style);
+
+    // Scroll to top functionality
+    const scrollBtn = document.createElement('button');
+    scrollBtn.className = 'scroll-to-top';
+    scrollBtn.id = 'scrollToTop';
+    scrollBtn.title = 'Go to top';
+    scrollBtn.textContent = '↑';
+    scrollBtn.style.display = 'none';
+    document.body.appendChild(scrollBtn);
+
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            scrollBtn.style.display = 'block';
+        } else {
+            scrollBtn.style.display = 'none';
+        }
+    });
+
+    scrollBtn.addEventListener('click', function() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
 
     // Initialize with sample data display
     console.log("✅ All event listeners registered for hotel booking analysis");
