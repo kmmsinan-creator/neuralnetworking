@@ -6,22 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="styles.css" />
-  
-  <!-- TensorFlow.js -->
+
+  <!-- TensorFlow.js + PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
-  <!-- PapaParse CSV Parser -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
-
 <body>
   <header>
     <h1>Customer Churn Prediction – TF.js</h1>
   </header>
 
   <main>
-
+    <!-- Batch prediction -->
     <section class="section">
       <h2>1. Upload CSV for Batch Prediction</h2>
+      <p>Upload a CSV that has the same feature columns as your training data (after encoding).</p>
       <input type="file" id="fileInput" accept=".csv" />
       <button id="predictBtn" disabled>Run Prediction</button>
       <div id="status"></div>
@@ -31,19 +30,40 @@
       </div>
     </section>
 
+    <!-- Single customer -->
     <section class="section">
-      <h2>2. Manual Single-Customer Prediction</h2>
-      <div id="singleForm"></div>
-      <button id="predictSingleBtn" disabled>Predict</button>
-      <div id="singleResult"></div>
-    </section>
+      <h2>2. Single Customer – Manual Prediction</h2>
+      <div class="columns">
+        <div class="card">
+          <p>Adjust feature values below, then click <b>Predict</b>.</p>
+          <div id="singleForm"></div>
+          <button id="predictSingleBtn" disabled>Predict Single Customer</button>
+          <div id="singleResult"></div>
+        </div>
 
+        <div class="card">
+          <h3>How this works</h3>
+          <p>
+            This web app uses:
+          </p>
+          <ul>
+            <li>Trained Keras model exported to <code>tfjs_model/</code></li>
+            <li>StandardScaler means and stds from <code>preprocessing_config.json</code></li>
+            <li>Same feature order as <code>X_train_clean.columns</code></li>
+          </ul>
+          <p>
+            Everything runs locally in your browser with TensorFlow.js.
+          </p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
-    <p>Customer Churn Prediction – NNDL Checkpoint 2</p>
+    Customer Churn Prediction – NNDL Checkpoint 2
   </footer>
 
+  <script src="ui.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
