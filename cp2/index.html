@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>E-Commerce Churn Prediction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Main Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <div class="page">
+    <!-- Top gradient header -->
+    <header class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">E-Commerce Customer Churn Predictor</h1>
+        <p class="hero-subtitle">
+          Upload a preprocessed customer feature row and run a deep learning model
+          <span class="hero-highlight">directly in your browser</span> using TensorFlow.js.
+        </p>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="main">
+      <section class="card">
+        <h2 class="card-title">1. Upload Customer Data (CSV)</h2>
+        <p class="card-text">
+          Upload a CSV file containing <strong>one row of preprocessed numeric features</strong> in the
+          <strong>same order</strong> as used during model training in your Colab notebook.
+          <br />
+          Example: a single row exported from <code>X_test_scaled</code>.
+        </p>
+
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="fileInput" accept=".csv" />
+          <label for="fileInput" class="btn btn-secondary">Choose CSV file</label>
+          <span id="fileName" class="file-name">No file selected</span>
+        </div>
+
+        <div class="hint">
+          Tip: For Checkpoint 2, it’s enough to test with CSVs generated from your notebook.
+          You can add raw-feature preprocessing later.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">2. Run Churn Prediction</h2>
+        <p class="card-text">
+          Once the model is loaded and a CSV row is parsed, click the button below to predict whether the customer is
+          likely to churn.
+        </p>
+
+        <div class="actions">
+          <button id="predictBtn" class="btn btn-primary" disabled>🔮 Predict Churn</button>
+          <span id="modelStatus" class="status-pill status-loading">Loading model…</span>
+        </div>
+
+        <div id="resultCard" class="result-card hidden">
+          <h3>Prediction Result</h3>
+          <p class="result-label">
+            Predicted Class:
+            <span id="predictedLabel" class="badge"></span>
+          </p>
+          <p class="result-prob">
+            Churn Probability:
+            <span id="predictedProb"></span>
+          </p>
+        </div>
+
+        <div class="log-container">
+          <h3 class="log-title">Log</h3>
+          <pre id="log" class="log"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Built with <span class="heart">❤</span> using
+        <a href="https://www.tensorflow.org/js" target="_blank" rel="noopener noreferrer">TensorFlow.js</a>
+        &amp; GitHub Pages.
+      </p>
+    </footer>
+  </div>
+
+  <!-- Main App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
