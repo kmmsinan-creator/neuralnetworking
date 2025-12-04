@@ -1,73 +1,96 @@
+// app.js – model logic, uses UI helpers from ui.js
+
+const fileInput = document.getElementById("fileInput");
+const predictBtn = document.getElementById("predictBtn");
+const predictSingleBtn = document.getElementById("predictSingleBtn");
+
 let tfModel = null;
 let preprocessingConfig = null;
 let rawData = null;
 
-const predictBtn = document.getElementById("predictBtn");
-const statusEl = document.getElementById("status");
-const resultsContainer = document.getElementById("resultsContainer");
-const fileInput = document.getElementById("fileInput");
+const { 
+  setStatus, 
+  renderBatchResults, 
+  buildSingleCustomerForm, 
+  getSingleCustomerValues, 
+  showSinglePrediction 
+} = window.UI;
 
-const singleForm = document.getElementById("singleForm");
-const predictSingleBtn = document.getElementById("predictSingleBtn");
-
-// ================= LOAD MODEL + PREPROCESSING CONFIG =================
+// =========== LOAD MODEL & CONFIG ON PAGE LOAD ===========
 window.addEventListener("DOMContentLoaded", async () => {
   try {
-    statusEl.textContent = "Loading model...";
-    tfModel = await tf.loadLayersModel("models/tfjs_model/model.json");
+    setStatus("Loading model...");
+    // index.html is in /webapp, model is in /models
+    tfModel = await tf.loadLayersModel("../models/tfjs_model/model.json");
 
-    const resp = await fetch("models/preprocessing_config.json");
+    const resp = await fetch("../models/preprocessing_config.json");
     preprocessingConfig = await resp.json();
 
-    statusEl.textContent = "Model loaded. Ready.";
-    buildSingleForm(preprocessingConfig);
+    setStatus("Model & preprocessing loaded. Ready.");
+    buildSingleCustomerForm(
+      preprocessingConfig.feature_names,
+      preprocessingConfig.means
+    );
     predictSingleBtn.disabled = false;
-
   } catch (err) {
-    console.error("Error loading model:", err);
-    statusEl.textContent = "Error loading model. Check console.";
+    console.error("Error loading model/config:", err);
+    setStatus("Error loading model/config. See console.");
   }
 });
 
-// ================= CSV UPLOAD =================
+// ===================== CSV UPLOAD =======================
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  statusEl.textContent = "Parsing CSV...";
+  setStatus("Parsing CSV...");
 
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
     complete: (results) => {
       rawData = results.data;
-      statusEl.textContent = `CSV loaded: ${rawData.length} rows`;
+      setStatus(`Loaded ${rawData.length} rows. Click "Run Prediction".`);
       predictBtn.disabled = false;
+    },
+    error: (err) => {
+      console.error("CSV parse error:", err);
+      setStatus("Error parsing CSV. See console.");
     }
   });
 });
 
-// ================= BATCH PREDICTION =================
+// ===================== BATCH PREDICTION ==================
 predictBtn.addEventListener("click", async () => {
-  if (!rawData) return;
+  if (!tfModel || !preprocessingConfig || !rawData) {
+    setStatus("Model/config/data missing.");
+    return;
+  }
 
-  statusEl.textContent = "Predicting...";
+  setStatus("Running batch prediction...");
+  predictBtn.disabled = true;
 
-  const X = buildInputTensor(rawData, preprocessingConfig);
-  const preds = await tfModel.predict(X).data();
-  X.dispose();
+  try {
+    const X = buildInputTensor(rawData, preprocessingConfig);
+    const preds = await tfModel.predict(X).data();
+    X.dispose();
 
-  const output = rawData.map((r, i) => ({
-    ...r,
-    probability: preds[i],
-    prediction: preds[i] >= 0.5 ? "Churned" : "Not Churned"
-  }));
+    const results = rawData.map((row, i) => ({
+      ...row,
+      probability: preds[i],
+      prediction: preds[i] >= 0.5 ? "Churned" : "Not Churned"
+    }));
 
-  renderResults(output);
-  statusEl.textContent = "Done.";
+    renderBatchResults(results);
+    setStatus("Prediction completed.");
+  } catch (err) {
+    console.error("Prediction error:", err);
+    setStatus("Error during prediction. See console.");
+  } finally {
+    predictBtn.disabled = false;
+  }
 });
 
-// Build input tensor using standardized values
 function buildInputTensor(rows, config) {
   const features = config.feature_names;
   const means = config.means;
@@ -76,72 +99,49 @@ function buildInputTensor(rows, config) {
   const numRows = rows.length;
   const numFeatures = features.length;
 
-  const arr = new Float32Array(numRows * numFeatures);
+  const data = new Float32Array(numRows * numFeatures);
 
-  rows.forEach((row, i) => {
-    features.forEach((f, j) => {
-      let val = parseFloat(row[f]);
-      if (isNaN(val)) val = means[j];
-      arr[i * numFeatures + j] = (val - means[j]) / (stds[j] || 1);
-    });
-  });
+  for (let i = 0; i < numRows; i++) {
+    const row = rows[i];
+    for (let j = 0; j < numFeatures; j++) {
+      const col = features[j];
+      let value = parseFloat(row[col]);
+      if (Number.isNaN(value)) value = means[j];
+      const scaled = (value - means[j]) / (stds[j] || 1.0);
+      data[i * numFeatures + j] = scaled;
+    }
+  }
 
-  return tf.tensor2d(arr, [numRows, numFeatures]);
+  return tf.tensor2d(data, [numRows, numFeatures]);
 }
 
-// Render HTML table for results
-function renderResults(rows) {
-  let html = "<table><tr><th>Probability</th><th>Prediction</th></tr>";
-
-  rows.forEach(r => {
-    html += `
-      <tr>
-        <td>${r.probability.toFixed(4)}</td>
-        <td>${r.prediction}</td>
-      </tr>`;
-  });
-
-  html += "</table>";
-  resultsContainer.innerHTML = html;
-}
-
-// =============== SINGLE CUSTOMER FORM =================
-function buildSingleForm(config) {
-  const features = config.feature_names;
-  const means = config.means;
-
-  let html = "";
-  features.forEach((f, i) => {
-    html += `
-      <div>
-        <label>${f}</label>
-        <input type="number" id="feat_${i}" value="${means[i].toFixed(3)}" step="any" />
-      </div>
-    `;
-  });
-
-  singleForm.innerHTML = html;
-}
-
+// ================== SINGLE CUSTOMER PREDICTION ==========
 predictSingleBtn.addEventListener("click", async () => {
-  const features = preprocessingConfig.feature_names;
-  const means = preprocessingConfig.means;
-  const stds = preprocessingConfig.stds;
+  if (!tfModel || !preprocessingConfig) {
+    setStatus("Model or preprocessing not ready.");
+    return;
+  }
 
-  const arr = new Float32Array(features.length);
+  try {
+    const features = preprocessingConfig.feature_names;
+    const means = preprocessingConfig.means;
+    const stds = preprocessingConfig.stds;
 
-  features.forEach((f, i) => {
-    let val = parseFloat(document.getElementById(`feat_${i}`).value);
-    if (isNaN(val)) val = means[i];
-    arr[i] = (val - means[i]) / (stds[i] || 1);
-  });
+    const rawVals = getSingleCustomerValues(features, means);
+    const scaled = new Float32Array(features.length);
 
-  const X = tf.tensor2d(arr, [1, features.length]);
-  const pred = await tfModel.predict(X).data();
-  X.dispose();
+    for (let i = 0; i < features.length; i++) {
+      scaled[i] = (rawVals[i] - means[i]) / (stds[i] || 1.0);
+    }
 
-  const p = pred[0];
-  document.getElementById("singleResult").innerHTML =
-    `<p><b>Probability:</b> ${p.toFixed(4)} <br>
-     <b>Prediction:</b> ${p >= 0.5 ? "Churned" : "Not Churned"}</p>`;
+    const X = tf.tensor2d(scaled, [1, features.length]);
+    const preds = await tfModel.predict(X).data();
+    X.dispose();
+
+    const prob = preds[0];
+    showSinglePrediction(prob);
+  } catch (err) {
+    console.error("Single prediction error:", err);
+    setStatus("Error during single-customer prediction.");
+  }
 });
