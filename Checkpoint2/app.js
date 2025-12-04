@@ -1,10 +1,10 @@
-// app.js – all logic in one file (no ui.js needed)
+// app.js – complete, self-contained logic for Churn TF.js app
 
-// ------- DOM elements -------
+// ---------- DOM elements ----------
 const fileInput = document.getElementById("fileInput");
 const predictBtn = document.getElementById("predictBtn");
 const predictSingleBtn = document.getElementById("predictSingleBtn");
-// This button is optional (only if you added "Use Sample Dataset" in HTML)
+// This button is optional – only exists if you added it in index.html
 const useSampleBtn = document.getElementById("useSampleBtn");
 
 const statusEl = document.getElementById("status");
@@ -12,11 +12,12 @@ const resultsContainer = document.getElementById("resultsContainer");
 const singleForm = document.getElementById("singleForm");
 const singleResult = document.getElementById("singleResult");
 
+// ---------- Global state ----------
 let tfModel = null;
 let preprocessingConfig = null;
 let rawData = null;
 
-// ------- small UI helpers -------
+// ---------- Small UI helpers ----------
 function setStatus(msg) {
   if (statusEl) statusEl.textContent = msg;
 }
@@ -100,7 +101,7 @@ function showSinglePrediction(prob) {
   `;
 }
 
-// ------- load model + config on page load -------
+// ---------- Load model + config on page load ----------
 window.addEventListener("load", async () => {
   try {
     setStatus("Loading model...");
@@ -113,6 +114,7 @@ window.addEventListener("load", async () => {
 
     setStatus("Model & preprocessing loaded. Ready.");
 
+    // Build single-customer form using feature names + means
     buildSingleCustomerForm(
       preprocessingConfig.feature_names,
       preprocessingConfig.means
@@ -121,11 +123,11 @@ window.addEventListener("load", async () => {
     predictSingleBtn.disabled = false;
   } catch (err) {
     console.error("Error loading model/config:", err);
-    setStatus("Error loading model/config. Open browser console for details.");
+    setStatus("Error loading model/config. Open browser console (F12 → Console) for details.");
   }
 });
 
-// ------- CSV upload from user -------
+// ---------- CSV upload from user ----------
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -147,7 +149,7 @@ fileInput.addEventListener("change", (e) => {
   });
 });
 
-// ------- optional: use sample CSV from /data/ (only if button exists) -------
+// ---------- Optional: use sample CSV from /data/ ----------
 if (useSampleBtn) {
   useSampleBtn.addEventListener("click", async () => {
     try {
@@ -176,10 +178,19 @@ if (useSampleBtn) {
   });
 }
 
-// ------- batch prediction -------
+// ---------- Batch prediction ----------
 predictBtn.addEventListener("click", async () => {
-  if (!tfModel || !preprocessingConfig || !rawData) {
-    setStatus("Model/config/data missing.");
+  // Detailed checks so you see *what* is missing
+  if (!tfModel) {
+    setStatus("ERROR: Model not loaded (tfModel is null). Check models/tfjs_model/model.json path.");
+    return;
+  }
+  if (!preprocessingConfig) {
+    setStatus("ERROR: preprocessing_config.json not loaded.");
+    return;
+  }
+  if (!rawData || !rawData.length) {
+    setStatus("ERROR: No data loaded. Did the CSV parse correctly?");
     return;
   }
 
@@ -231,7 +242,7 @@ function buildInputTensor(rows, config) {
   return tf.tensor2d(data, [numRows, numFeatures]);
 }
 
-// ------- single-customer prediction -------
+// ---------- Single-customer prediction ----------
 predictSingleBtn.addEventListener("click", async () => {
   if (!tfModel || !preprocessingConfig) {
     setStatus("Model or preprocessing not ready.");
