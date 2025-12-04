@@ -1,27 +1,111 @@
-// app.js – model logic, uses UI helpers from ui.js
+// app.js – all logic in one file (no ui.js needed)
 
+// ------- DOM elements -------
 const fileInput = document.getElementById("fileInput");
 const predictBtn = document.getElementById("predictBtn");
 const predictSingleBtn = document.getElementById("predictSingleBtn");
+// This button is optional (only if you added "Use Sample Dataset" in HTML)
+const useSampleBtn = document.getElementById("useSampleBtn");
+
+const statusEl = document.getElementById("status");
+const resultsContainer = document.getElementById("resultsContainer");
+const singleForm = document.getElementById("singleForm");
+const singleResult = document.getElementById("singleResult");
 
 let tfModel = null;
 let preprocessingConfig = null;
 let rawData = null;
 
-const { 
-  setStatus, 
-  renderBatchResults, 
-  buildSingleCustomerForm, 
-  getSingleCustomerValues, 
-  showSinglePrediction 
-} = window.UI;
+// ------- small UI helpers -------
+function setStatus(msg) {
+  if (statusEl) statusEl.textContent = msg;
+}
 
-// =========== LOAD MODEL & CONFIG ON PAGE LOAD ===========
-window.addEventListener("DOMContentLoaded", async () => {
+function renderBatchResults(rows) {
+  if (!rows || !rows.length) {
+    resultsContainer.innerHTML = "<p>No results to show.</p>";
+    return;
+  }
+
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Churn Probability</th>
+          <th>Prediction</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  rows.forEach((r, i) => {
+    const prob = r.probability || 0;
+    const label = r.prediction || "Not Churned";
+    const isChurn = label === "Churned";
+    const cls = isChurn ? "tag tag-churn" : "tag tag-nochurn";
+
+    html += `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${prob.toFixed(4)}</td>
+        <td><span class="${cls}">${label}</span></td>
+      </tr>
+    `;
+  });
+
+  html += "</tbody></table>";
+  resultsContainer.innerHTML = html;
+}
+
+function buildSingleCustomerForm(featureNames, means) {
+  singleForm.innerHTML = "";
+  featureNames.forEach((fname, idx) => {
+    const row = document.createElement("div");
+    row.className = "form-row";
+
+    const label = document.createElement("label");
+    label.textContent = fname;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "any";
+    input.value = Number(means[idx]).toFixed(3);
+    input.id = `feat_${idx}`;
+
+    row.appendChild(label);
+    row.appendChild(input);
+    singleForm.appendChild(row);
+  });
+}
+
+function getSingleCustomerValues(featureNames, means) {
+  const vals = new Float32Array(featureNames.length);
+  featureNames.forEach((_, idx) => {
+    const inp = document.getElementById(`feat_${idx}`);
+    let v = parseFloat(inp?.value);
+    if (Number.isNaN(v)) v = means[idx];
+    vals[idx] = v;
+  });
+  return vals;
+}
+
+function showSinglePrediction(prob) {
+  const label = prob >= 0.5 ? "Churned" : "Not Churned";
+  singleResult.innerHTML = `
+    <p>
+      <span class="pill">Probability: ${prob.toFixed(4)}</span>
+      <span class="pill">Prediction: ${label}</span>
+    </p>
+  `;
+}
+
+// ------- load model + config on page load -------
+window.addEventListener("load", async () => {
   try {
     setStatus("Loading model...");
-    
-    // Since index.html is now in the ROOT folder, the correct path is:
+
+    // index.html is in /Checkpoint2, model is in /Checkpoint2/models/...
     tfModel = await tf.loadLayersModel("models/tfjs_model/model.json");
 
     const resp = await fetch("models/preprocessing_config.json");
@@ -35,36 +119,64 @@ window.addEventListener("DOMContentLoaded", async () => {
     );
 
     predictSingleBtn.disabled = false;
-
   } catch (err) {
     console.error("Error loading model/config:", err);
-    setStatus("Error loading model/config. See console.");
+    setStatus("Error loading model/config. Open browser console for details.");
   }
 });
 
-// ===================== CSV UPLOAD =======================
+// ------- CSV upload from user -------
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  setStatus("Parsing CSV...");
+  setStatus("Parsing uploaded CSV...");
 
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
     complete: (results) => {
       rawData = results.data;
-      setStatus(`Loaded ${rawData.length} rows. Click "Run Prediction".`);
+      setStatus(`Loaded ${rawData.length} rows from uploaded file. Click "Run Prediction".`);
       predictBtn.disabled = false;
     },
     error: (err) => {
       console.error("CSV parse error:", err);
-      setStatus("Error parsing CSV. See console.");
+      setStatus("Error parsing uploaded CSV. See console.");
     }
   });
 });
 
-// ===================== BATCH PREDICTION ==================
+// ------- optional: use sample CSV from /data/ (only if button exists) -------
+if (useSampleBtn) {
+  useSampleBtn.addEventListener("click", async () => {
+    try {
+      setStatus("Loading sample dataset from /data/E_Commerce_Dataset.csv ...");
+
+      const response = await fetch("data/E_Commerce_Dataset.csv");
+      const csvText = await response.text();
+
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          rawData = results.data;
+          setStatus(`Loaded ${rawData.length} rows from sample dataset. Click "Run Prediction".`);
+          predictBtn.disabled = false;
+        },
+        error: (err) => {
+          console.error("Sample CSV parse error:", err);
+          setStatus("Error parsing sample CSV. See console.");
+        }
+      });
+    } catch (err) {
+      console.error("Error fetching sample dataset:", err);
+      setStatus("Error loading sample dataset. See console.");
+    }
+  });
+}
+
+// ------- batch prediction -------
 predictBtn.addEventListener("click", async () => {
   if (!tfModel || !preprocessingConfig || !rawData) {
     setStatus("Model/config/data missing.");
@@ -100,21 +212,32 @@ function buildInputTensor(rows, config) {
   const means = config.means;
   const stds = config.stds;
 
-  const data = new Float32Array(rows.length * features.length);
+  const numRows = rows.length;
+  const numFeatures = features.length;
 
-  rows.forEach((row, i) => {
-    features.forEach((col, j) => {
+  const data = new Float32Array(numRows * numFeatures);
+
+  for (let i = 0; i < numRows; i++) {
+    const row = rows[i];
+    for (let j = 0; j < numFeatures; j++) {
+      const col = features[j];
       let value = parseFloat(row[col]);
-      if (isNaN(value)) value = means[j];
-      data[i * features.length + j] = (value - means[j]) / (stds[j] || 1);
-    });
-  });
+      if (Number.isNaN(value)) value = means[j];
+      const scaled = (value - means[j]) / (stds[j] || 1.0);
+      data[i * numFeatures + j] = scaled;
+    }
+  }
 
-  return tf.tensor2d(data, [rows.length, features.length]);
+  return tf.tensor2d(data, [numRows, numFeatures]);
 }
 
-// =============== SINGLE CUSTOMER PREDICTION ==========
+// ------- single-customer prediction -------
 predictSingleBtn.addEventListener("click", async () => {
+  if (!tfModel || !preprocessingConfig) {
+    setStatus("Model or preprocessing not ready.");
+    return;
+  }
+
   try {
     const features = preprocessingConfig.feature_names;
     const means = preprocessingConfig.means;
@@ -123,18 +246,18 @@ predictSingleBtn.addEventListener("click", async () => {
     const rawVals = getSingleCustomerValues(features, means);
     const scaled = new Float32Array(features.length);
 
-    rawVals.forEach((v, i) => {
-      scaled[i] = (v - means[i]) / (stds[i] || 1);
-    });
+    for (let i = 0; i < features.length; i++) {
+      scaled[i] = (rawVals[i] - means[i]) / (stds[i] || 1.0);
+    }
 
     const X = tf.tensor2d(scaled, [1, features.length]);
-    const pred = await tfModel.predict(X).data();
+    const preds = await tfModel.predict(X).data();
     X.dispose();
 
-    showSinglePrediction(pred[0]);
-
+    const prob = preds[0];
+    showSinglePrediction(prob);
   } catch (err) {
     console.error("Single prediction error:", err);
-    setStatus("Error during single-customer prediction.");
+    setStatus("Error during single-customer prediction. See console.");
   }
 });
