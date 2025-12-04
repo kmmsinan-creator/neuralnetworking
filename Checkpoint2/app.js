@@ -1,210 +1,267 @@
-// app.js – TF.js churn prediction frontend
+// app.js
 
 let tfModel = null;
-let preprocessConfig = null;
-let rawCsvData = null;
+let preprocessingConfig = null;
+let rawData = null;  // rows from CSV
+let header = null;   // columns from CSV
 
-// Utility: small helper to create status tags
-function statusTag(text, type = "ok") {
-  const cls = type === "ok" ? "tag-ok" : "tag-warn";
-  return `<span class="tag ${cls}">${text}</span>`;
-}
+const fileInput = document.getElementById("fileInput");
+const predictBtn = document.getElementById("predictBtn");
+const statusEl = document.getElementById("status");
+const resultsContainer = document.getElementById("resultsContainer");
 
-// 1) Load TF.js model and preprocessing config on page load
-async function loadResources() {
-  const modelStatusEl = document.getElementById("model-status");
-  const preprocessStatusEl = document.getElementById("preprocess-status");
+const singleForm = document.getElementById("singleForm");
+const predictSingleBtn = document.getElementById("predictSingleBtn");
+const singleResult = document.getElementById("singleResult");
 
+// ===================== 1) LOAD MODEL + CONFIG ON PAGE LOAD =====================
+window.addEventListener("DOMContentLoaded", async () => {
   try {
-    modelStatusEl.innerHTML = "Loading model from <code>model/model.json</code>...";
-    tfModel = await tf.loadLayersModel("model/model.json");
-    modelStatusEl.innerHTML = `${statusTag("MODEL LOADED")} Model ready.`;
-  } catch (err) {
-    console.error("Error loading model:", err);
-    modelStatusEl.innerHTML = `${statusTag("MODEL ERROR", "warn")} Could not load model/model.json`;
-  }
+    statusEl.textContent = "Loading TF.js model...";
+    tfModel = await tf.loadLayersModel("tfjs_model/model.json");
+    statusEl.textContent = "Model loaded. Loading preprocessing_config.json...";
 
-  try {
-    preprocessStatusEl.innerHTML = "Loading preprocessing_config.json...";
     const resp = await fetch("preprocessing_config.json");
-    preprocessConfig = await resp.json();
+    preprocessingConfig = await resp.json();
 
-    preprocessStatusEl.innerHTML =
-      `${statusTag("PREPROCESS OK")} ` +
-      `Loaded <code>preprocessing_config.json</code> with ` +
-      `${preprocessConfig.feature_names.length} features and threshold ${preprocessConfig.threshold}.`;
+    statusEl.textContent = "Model & preprocessing ready. Upload a CSV or use Single Customer section.";
+
+    // Build single-customer dynamic form
+    buildSingleCustomerForm(preprocessingConfig);
+    predictSingleBtn.disabled = false;
   } catch (err) {
-    console.error("Error loading preprocessing config:", err);
-    preprocessStatusEl.innerHTML =
-      `${statusTag("PREPROCESS ERROR", "warn")} Could not load preprocessing_config.json`;
+    console.error("Error loading model or config:", err);
+    statusEl.textContent = "Error loading model or preprocessing_config.json. Check console.";
+  }
+});
+
+// ===================== 2) CSV UPLOAD & BATCH PREDICTION =======================
+
+fileInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  statusEl.textContent = "Parsing CSV...";
+  rawData = null;
+  header = null;
+  predictBtn.disabled = true;
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function (results) {
+      rawData = results.data;
+      header = results.meta.fields;
+
+      statusEl.textContent = `Loaded ${rawData.length} rows. Click "Run Churn Prediction".`;
+      predictBtn.disabled = false;
+    },
+    error: function (err) {
+      console.error("Error parsing CSV:", err);
+      statusEl.textContent = "Error parsing CSV. Check console.";
+    }
+  });
+});
+
+predictBtn.addEventListener("click", async () => {
+  if (!tfModel || !preprocessingConfig || !rawData) {
+    statusEl.textContent = "Model/config/data missing.";
+    return;
   }
 
-  // Enable predict button only if everything is loaded
-  const predictBtn = document.getElementById("predict-btn");
-  if (tfModel && preprocessConfig) {
+  statusEl.textContent = "Preparing data and running predictions...";
+  predictBtn.disabled = true;
+
+  try {
+    const inputTensor = buildInputTensor(rawData, preprocessingConfig);
+    const preds = await tfModel.predict(inputTensor).data();
+    inputTensor.dispose();
+
+    // Build results with probabilities + labels
+    const results = [];
+    for (let i = 0; i < rawData.length; i++) {
+      const p = preds[i];
+      const predictedLabel = p >= 0.5 ? 1 : 0;
+      results.push({
+        __row: i + 1,
+        churn_probability: p,
+        churn_pred: predictedLabel,
+        ...rawData[i]  // keep original columns if needed
+      });
+    }
+
+    renderResultsTable(results);
+    statusEl.textContent = "Prediction completed.";
+  } catch (err) {
+    console.error("Error during prediction:", err);
+    statusEl.textContent = "Error during prediction. Check console.";
+  } finally {
     predictBtn.disabled = false;
   }
-}
+});
 
-// 2) Handle file upload (CSV)
-function setupFileInput() {
-  const fileInput = document.getElementById("file-input");
-  const uploadStatus = document.getElementById("upload-status");
+// Build input tensor using feature_names + means + stds
+function buildInputTensor(rows, config) {
+  const featureNames = config.feature_names;
+  const means = config.means;
+  const stds = config.stds;
 
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0];
-    if (!file) {
-      uploadStatus.innerHTML = `${statusTag("NO FILE", "warn")} Please select a CSV file.`;
-      return;
-    }
+  const numRows = rows.length;
+  const numFeatures = featureNames.length;
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      uploadStatus.innerHTML = `${statusTag("INVALID", "warn")} Only .csv files are supported.`;
-      return;
-    }
+  const data = new Float32Array(numRows * numFeatures);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      rawCsvData = parseCsv(text); // store parsed data
-      if (rawCsvData.rows.length === 0) {
-        uploadStatus.innerHTML = `${statusTag("EMPTY", "warn")} CSV has no data rows.`;
-      } else {
-        uploadStatus.innerHTML =
-          `${statusTag("CSV READY")} Loaded ${rawCsvData.rows.length} rows with ` +
-          `${rawCsvData.headers.length} columns.`;
+  for (let i = 0; i < numRows; i++) {
+    const row = rows[i];
+
+    for (let j = 0; j < numFeatures; j++) {
+      const col = featureNames[j];
+      let value = parseFloat(row[col]);
+
+      if (Number.isNaN(value)) {
+        // missing -> use training mean
+        value = means[j];
       }
-    };
-    reader.readAsText(file);
-    uploadStatus.innerHTML = "Reading CSV...";
-  });
-}
-
-// 3) Simple CSV parser (no external libraries)
-// Returns { headers: [...], rows: [ {col: val, ...}, ... ] }
-function parseCsv(csvText) {
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length === 0) {
-    return { headers: [], rows: [] };
-  }
-
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const rows = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(",");
-    if (parts.length === 0) continue;
-    const rowObj = {};
-    headers.forEach((h, idx) => {
-      rowObj[h] = parts[idx] !== undefined ? parts[idx].trim() : "";
-    });
-    rows.push(rowObj);
-  }
-
-  return { headers, rows };
-}
-
-// 4) Preprocess a single row using medians + scaler params from config
-function preprocessRow(rowObj) {
-  const { feature_names, medians, scaler_mean, scaler_scale } = preprocessConfig;
-  const featureVector = [];
-
-  for (const feat of feature_names) {
-    let rawVal = rowObj[feat];
-
-    // If missing, use median
-    if (rawVal === undefined || rawVal === null || rawVal === "") {
-      rawVal = medians[feat];
+      const std = stds[j] || 1.0;
+      const scaled = (value - means[j]) / std;
+      data[i * numFeatures + j] = scaled;
     }
-
-    let x = parseFloat(rawVal);
-    if (Number.isNaN(x)) {
-      // again fall back to median if parse failed
-      x = parseFloat(medians[feat]) || 0.0;
-    }
-
-    // Scale: (x - mean) / scale
-    const mean = scaler_mean[feat];
-    const scale = scaler_scale[feat] || 1.0;
-    const xScaled = (x - mean) / scale;
-
-    featureVector.push(xScaled);
   }
 
-  return featureVector;
+  return tf.tensor2d(data, [numRows, numFeatures]);
 }
 
-// 5) Run prediction on all uploaded rows
-async function runPrediction() {
-  const resultsDiv = document.getElementById("results");
-  const uploadStatus = document.getElementById("upload-status");
-
-  if (!tfModel || !preprocessConfig) {
-    alert("Model or preprocessing config not loaded yet.");
-    return;
-  }
-  if (!rawCsvData || rawCsvData.rows.length === 0) {
-    alert("Please upload a CSV file first.");
+// Smart-ish display: show row index + ID-like columns + prob + label
+function renderResultsTable(results) {
+  if (!results.length) {
+    resultsContainer.innerHTML = "<p>No data to display.</p>";
     return;
   }
 
-  const { rows } = rawCsvData;
-  const threshold = preprocessConfig.threshold;
+  const allKeys = Object.keys(results[0]);
 
-  // Build feature matrix
-  const featureMatrix = rows.map((row) => preprocessRow(row));
-  const tensor = tf.tensor2d(featureMatrix);
+  // Detect ID-like columns from original CSV
+  const idCandidates = allKeys.filter(k => {
+    const lower = k.toLowerCase();
+    return (
+      lower.includes("id") ||
+      lower.includes("customer") ||
+      lower.includes("account") ||
+      lower.includes("user")
+    );
+  }).filter(k => !["__row", "churn_probability", "churn_pred"].includes(k));
 
-  // Predict probabilities
-  const probsTensor = tfModel.predict(tensor);
-  const probs = await probsTensor.data();
+  const colsToShow = ["__row", ...idCandidates, "churn_probability", "churn_pred"];
 
-  tensor.dispose();
-  probsTensor.dispose();
+  let html = "<table><thead><tr>";
+  for (const c of colsToShow) {
+    if (c === "__row") {
+      html += "<th>#</th>";
+    } else if (c === "churn_probability") {
+      html += "<th>Churn Probability</th>";
+    } else if (c === "churn_pred") {
+      html += "<th>Prediction</th>";
+    } else {
+      html += `<th>${c}</th>`;
+    }
+  }
+  html += "</tr></thead><tbody>";
 
-  // Build result table
-  let html = "";
-  html += `<p>Predictions for ${rows.length} customers (threshold = ${threshold}):</p>`;
-  html += `<table><thead><tr>
-      <th>#</th>
-      <th>Churn Probability</th>
-      <th>Prediction</th>
-  </tr></thead><tbody>`;
-
-  for (let i = 0; i < rows.length; i++) {
-    const p = probs[i];
-    const label = p >= threshold ? 1 : 0;
-    const probPercent = (p * 100).toFixed(2) + "%";
-    const cls = label === 1 ? "pred-high" : "pred-low";
-    const labelText = label === 1 ? "Churn" : "Not Churn";
-
-    html += `<tr>
-        <td>${i + 1}</td>
-        <td>${probPercent}</td>
-        <td class="${cls}">${labelText}</td>
-    </tr>`;
+  for (const row of results) {
+    html += "<tr>";
+    for (const c of colsToShow) {
+      if (c === "churn_probability") {
+        html += `<td>${row[c].toFixed(4)}</td>`;
+      } else if (c === "churn_pred") {
+        const isChurn = row[c] === 1 || row[c] === "1";
+        const label = isChurn ? "Churned" : "Not Churned";
+        const cls = isChurn ? "tag tag-churn" : "tag tag-nochurn";
+        html += `<td><span class="${cls}">${label}</span></td>`;
+      } else {
+        html += `<td>${row[c] !== undefined ? row[c] : ""}</td>`;
+      }
+    }
+    html += "</tr>";
   }
 
-  html += `</tbody></table>`;
-
-  resultsDiv.innerHTML = html;
-  uploadStatus.innerHTML += "<br/>Prediction complete.";
+  html += "</tbody></table>";
+  resultsContainer.innerHTML = html;
 }
 
-// Init
-window.addEventListener("DOMContentLoaded", () => {
-  loadResources();
-  setupFileInput();
+// ===================== 3) SINGLE CUSTOMER PREDICTION ==========================
 
-  const predictBtn = document.getElementById("predict-btn");
-  predictBtn.addEventListener("click", () => {
-    runPrediction().catch((err) => {
-      console.error("Error during prediction:", err);
-      alert("Prediction failed. Check console for details.");
-    });
+function buildSingleCustomerForm(config) {
+  const featureNames = config.feature_names;
+  const means = config.means;
+
+  singleForm.innerHTML = "";
+
+  featureNames.forEach((fname, idx) => {
+    const fieldDiv = document.createElement("div");
+    fieldDiv.className = "form-field";
+
+    const label = document.createElement("label");
+    label.textContent = fname;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "any";
+    input.value = means[idx].toFixed(3); // default to mean
+
+    // Use a safe ID for inputs
+    const safeId = "feat_" + idx;
+    input.id = safeId;
+    input.dataset.featureIndex = idx;
+
+    fieldDiv.appendChild(label);
+    fieldDiv.appendChild(input);
+    singleForm.appendChild(fieldDiv);
   });
+}
+
+predictSingleBtn.addEventListener("click", async () => {
+  if (!tfModel || !preprocessingConfig) {
+    singleResult.textContent = "Model or preprocessing not loaded yet.";
+    return;
+  }
+
+  try {
+    const featureNames = preprocessingConfig.feature_names;
+    const means = preprocessingConfig.means;
+    const stds = preprocessingConfig.stds;
+
+    const numFeatures = featureNames.length;
+    const data = new Float32Array(numFeatures);
+
+    const inputs = singleForm.querySelectorAll("input[data-feature-index]");
+
+    inputs.forEach((inp) => {
+      const idx = parseInt(inp.dataset.featureIndex, 10);
+      let value = parseFloat(inp.value);
+
+      if (Number.isNaN(value)) {
+        value = means[idx]; // fallback
+      }
+      const std = stds[idx] || 1.0;
+      const scaled = (value - means[idx]) / std;
+      data[idx] = scaled;
+    });
+
+    const inputTensor = tf.tensor2d(data, [1, numFeatures]);
+    const preds = await tfModel.predict(inputTensor).data();
+    inputTensor.dispose();
+
+    const prob = preds[0];
+    const label = prob >= 0.5 ? "Churned" : "Not Churned";
+
+    singleResult.innerHTML = `
+      <p>
+        <span class="pill">Churn Probability: ${prob.toFixed(4)}</span>
+        <span class="pill">Prediction: ${label}</span>
+      </p>
+    `;
+  } catch (err) {
+    console.error("Error during single-customer prediction:", err);
+    singleResult.textContent = "Error during prediction. Check console.";
+  }
 });
