@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Customer Churn Prediction – TF.js Web App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- TensorFlow.js + PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1>Customer Churn Prediction – TF.js</h1>
+  </header>
+
+  <main>
+    <!-- ================= Batch Prediction ================= -->
+    <section class="section">
+      <h2>1. Upload CSV for Batch Prediction</h2>
+      <p>Upload a CSV with the same feature columns used in training.</p>
+
+      <input type="file" id="fileInput" accept=".csv" />
+
+      <button id="predictBtn" disabled>Run Prediction</button>
+
+      <div id="status"></div>
+
+      <div id="resultsContainer">
+        <p>No predictions yet.</p>
+      </div>
+    </section>
+
+    <!-- ================= Single Prediction ================= -->
+    <section class="section">
+      <h2>2. Single Customer – Manual Prediction</h2>
+
+      <div class="columns">
+        <!-- Left card: Form -->
+        <div class="card">
+          <p>Adjust feature values below, then click Predict.</p>
+
+          <div id="singleForm"></div>
+
+          <button id="predictSingleBtn" disabled>Predict Single Customer</button>
+
+          <div id="singleResult"></div>
+        </div>
+
+        <!-- Right card: Info -->
+        <div class="card">
+          <h3>How This Works</h3>
+          <p>This web app uses:</p>
+
+          <ul>
+            <li>Exported TensorFlow.js model from /models/tfjs_model/</li>
+            <li>Preprocessing stats from preprocessing_config.json</li>
+            <li>Same training feature order & scaling</li>
+          </ul>
+
+          <p>Everything runs locally in your browser using TensorFlow.js.</p>
+          <p>No backend server required.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Customer Churn Prediction – NNDL Checkpoint 2</p>
+  </footer>
+
+  <!-- JS Files -->
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
