@@ -1,8 +1,7 @@
 let model = null;
-let dataRows = [];       // numeric feature rows
-let featureNames = [];   // CSV header
-let customerIDs = [];    // first column from CSV
-let numFeaturesModel = 30; // your model was trained with 30 features
+let dataRows = [];
+let featureNames = [];
+let numFeaturesModel = 30; // we know input_dim = 30 from your model
 
 const fileInput = document.getElementById('fileInput');
 const fileNameSpan = document.getElementById('fileName');
@@ -25,8 +24,7 @@ function log(message) {
 function buildModel() {
   const m = tf.sequential();
 
-  // Must match your Python model architecture EXACTLY:
-  // Dense(64, relu, input_shape=(30,))
+  // This must match your Python model architecture
   m.add(tf.layers.dense({
     units: 64,
     activation: 'relu',
@@ -113,14 +111,13 @@ async function loadModel() {
   }
 }
 
-/* ------------ CSV upload handling (multi-row, with CustomerID) ------------ */
+/* ------------ CSV upload handling (multi-row) ------------ */
 
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) {
     fileNameSpan.textContent = 'No file selected';
     dataRows = [];
-    customerIDs = [];
     return;
   }
 
@@ -136,22 +133,17 @@ fileInput.addEventListener('change', (e) => {
       if (!rows || rows.length === 0) {
         log('❌ CSV appears to be empty.');
         dataRows = [];
-        customerIDs = [];
         return;
       }
 
       featureNames = Object.keys(rows[0]);
-      log(`CSV columns (${featureNames.length}): ${featureNames.join(', ')}`);
+      log(`CSV feature columns (${featureNames.length}): ${featureNames.join(', ')}`);
 
       const numericRows = [];
-      const ids = [];
       let skipped = 0;
 
       rows.forEach((row, idx) => {
-        // Extract values in header order
         const values = featureNames.map((name) => row[name]);
-
-        // Row completely empty?
         const allEmpty = values.every(
           (v) => v === '' || v === null || v === undefined
         );
@@ -160,44 +152,34 @@ fileInput.addEventListener('change', (e) => {
           return;
         }
 
-        // First column: CustomerID (keep as string)
-        const customerId = values[0];
-
-        // Remaining columns: numeric features used by the model
-        const featureVals = values.slice(1).map((v) => Number(v));
-        const hasNaN = featureVals.some((v) => Number.isNaN(v));
+        const numeric = values.map((v) => Number(v));
+        const hasNaN = numeric.some((v) => Number.isNaN(v));
 
         if (hasNaN) {
           skipped++;
-          log(`⚠️ Skipping row ${idx + 2} (non-numeric feature value detected).`);
+          log(`⚠️ Skipping row ${idx + 2} (non-numeric value detected).`);
           return;
         }
 
-        ids.push(customerId);
-        numericRows.push(featureVals);
+        numericRows.push(numeric);
       });
 
       if (numericRows.length === 0) {
-        log('❌ No valid numeric rows found in CSV. Make sure features are already encoded & scaled.');
+        log('❌ No valid numeric rows found in CSV. Ensure data is already encoded & scaled.');
         dataRows = [];
-        customerIDs = [];
         return;
       }
 
-      if (featureNames.length - 1 !== numFeaturesModel) {
+      if (featureNames.length !== numFeaturesModel) {
         log(
-          `⚠️ WARNING: Model expects ${numFeaturesModel} feature columns, ` +
-          `but CSV has ${featureNames.length - 1} feature columns (excluding CustomerID). ` +
-          `Check preprocessing and column order.`
+          `⚠️ WARNING: Model expects ${numFeaturesModel} features, ` +
+          `but CSV has ${featureNames.length}. Check preprocessing and column order.`
         );
       }
 
       dataRows = numericRows;
-      customerIDs = ids;
-
       log(`✅ Parsed ${dataRows.length} valid customer rows (skipped ${skipped}).`);
 
-      // Reset previous results
       resultCard.classList.add('hidden');
       resultsTable.innerHTML = '';
       totalCustomersSpan.textContent = '0';
@@ -225,7 +207,7 @@ predictBtn.addEventListener('click', async () => {
   try {
     log(`Running prediction for ${dataRows.length} customers …`);
 
-    const inputTensor = tf.tensor2d(dataRows); // [N, numFeaturesModel]
+    const inputTensor = tf.tensor2d(dataRows);
     const output = model.predict(inputTensor);
     const probs = await output.data();
 
@@ -235,7 +217,7 @@ predictBtn.addEventListener('click', async () => {
     let html = `
       <thead>
         <tr>
-          <th class="col-idx">Customer ID</th>
+          <th class="col-idx">#</th>
           <th class="col-prob">Churn Prob.</th>
           <th class="col-label">Class</th>
         </tr>
@@ -255,7 +237,7 @@ predictBtn.addEventListener('click', async () => {
 
       html += `
         <tr>
-          <td>${customerIDs[i]}</td>
+          <td>${i + 1}</td>
           <td>${probPercent}%</td>
           <td><span class="${badgeClass}">${label}</span></td>
         </tr>
