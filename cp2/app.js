@@ -1,6 +1,7 @@
 let model = null;
-let inputRow = null; // numeric feature vector
-let numFeatures = null;
+let dataRows = [];        // numeric rows from CSV
+let featureNames = [];    // header columns from CSV
+let numFeaturesModel = null;
 
 const fileInput = document.getElementById('fileInput');
 const fileNameSpan = document.getElementById('fileName');
@@ -8,10 +9,9 @@ const predictBtn = document.getElementById('predictBtn');
 const modelStatus = document.getElementById('modelStatus');
 const logEl = document.getElementById('log');
 const resultCard = document.getElementById('resultCard');
-const predictedLabelSpan = document.getElementById('predictedLabel');
-const predictedProbSpan = document.getElementById('predictedProb');
-
-/* ------------------ Logging helper ------------------ */
+const resultsTable = document.getElementById('resultsTable');
+const totalCustomersSpan = document.getElementById('totalCustomers');
+const totalChurnersSpan = document.getElementById('totalChurners');
 
 function log(message) {
   console.log(message);
@@ -19,33 +19,36 @@ function log(message) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-/* ------------------ Model loading ------------------ */
+/* ------------ Load TF.js model ------------ */
 
 async function loadModel() {
   try {
-    log('Loading TF.js model from model/model.json …');
-    // If your model folder name is different, adjust this path
-    model = await tf.loadLayersModel('model/model.json');
-    numFeatures = model.inputs[0].shape[1];
-    log(`✅ Model loaded successfully. Input features: ${numFeatures}`);
+    const modelUrl = './model/model.json';
+    log(`Loading TF.js model from ${modelUrl} …`);
+
+    model = await tf.loadLayersModel(modelUrl);
+    numFeaturesModel = model.inputs[0].shape[1];
+
+    log(`✅ Model loaded. Input features expected: ${numFeaturesModel}`);
     modelStatus.textContent = 'Model loaded';
     modelStatus.classList.remove('status-loading');
     modelStatus.classList.add('status-ready');
     predictBtn.disabled = false;
   } catch (err) {
     console.error(err);
-    log('❌ Error loading model. Check console and model path.');
+    const msg = err && err.message ? err.message : String(err);
+    log('❌ Error loading model: ' + msg);
     modelStatus.textContent = 'Model load failed';
   }
 }
 
-/* ------------------ CSV upload handling ------------------ */
+/* ------------ CSV upload handling (multi-row) ------------ */
 
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) {
     fileNameSpan.textContent = 'No file selected';
-    inputRow = null;
+    dataRows = [];
     return;
   }
 
@@ -53,95 +56,144 @@ fileInput.addEventListener('change', (e) => {
   log(`Selected file: ${file.name}`);
 
   Papa.parse(file, {
-    complete: (results) => {
-      const rows = results.data.filter((r) => r && r.length > 0);
-
-      if (rows.length < 2) {
-        log('❌ CSV must contain a header row and at least one data row.');
-        inputRow = null;
-        return;
-      }
-
-      // We assume:
-      // row[0] = header, row[1] = single data row
-      let row = rows[1];
-
-      // Remove any empty strings at the end
-      row = row.filter((v) => v !== '');
-
-      const numericRow = row.map((v) => Number(v));
-      if (numericRow.some((v) => Number.isNaN(v))) {
-        log('❌ Some values are not numeric. Ensure the CSV is preprocessed numeric features.');
-        inputRow = null;
-        return;
-      }
-
-      if (numFeatures !== null && numericRow.length !== numFeatures) {
-        log(
-          `❌ Feature length mismatch. Model expects ${numFeatures} features, but CSV row has ${numericRow.length}.`
-        );
-        inputRow = null;
-        return;
-      }
-
-      inputRow = numericRow;
-      log('✅ Parsed CSV row successfully. Ready to predict.');
-    },
-    header: false,
+    header: true,
     skipEmptyLines: true,
+    complete: (results) => {
+      const rows = results.data;
+
+      if (!rows || rows.length === 0) {
+        log('❌ CSV appears to be empty.');
+        dataRows = [];
+        return;
+      }
+
+      featureNames = Object.keys(rows[0]);
+      log(`CSV feature columns (${featureNames.length}): ${featureNames.join(', ')}`);
+
+      const numericRows = [];
+      let skipped = 0;
+
+      rows.forEach((row, idx) => {
+        const values = featureNames.map((name) => row[name]);
+
+        const allEmpty = values.every(
+          (v) => v === '' || v === null || v === undefined
+        );
+        if (allEmpty) {
+          skipped++;
+          return;
+        }
+
+        const numeric = values.map((v) => Number(v));
+        const hasNaN = numeric.some((v) => Number.isNaN(v));
+
+        if (hasNaN) {
+          skipped++;
+          log(`⚠️ Skipping row ${idx + 2} (non-numeric value detected).`);
+          return;
+        }
+
+        numericRows.push(numeric);
+      });
+
+      if (numericRows.length === 0) {
+        log('❌ No valid numeric rows found in CSV. Ensure data is already encoded & scaled.');
+        dataRows = [];
+        return;
+      }
+
+      if (numFeaturesModel !== null && featureNames.length !== numFeaturesModel) {
+        log(
+          `⚠️ WARNING: Model expects ${numFeaturesModel} features, ` +
+          `but CSV has ${featureNames.length}. Check preprocessing and column order.`
+        );
+      }
+
+      dataRows = numericRows;
+      log(`✅ Parsed ${dataRows.length} valid customer rows (skipped ${skipped}).`);
+
+      // Reset previous results
+      resultCard.classList.add('hidden');
+      resultsTable.innerHTML = '';
+      totalCustomersSpan.textContent = '0';
+      totalChurnersSpan.textContent = '0';
+    },
+    error: (err) => {
+      console.error(err);
+      log('❌ Error parsing CSV file.');
+    },
   });
 });
 
-/* ------------------ Prediction ------------------ */
+/* ------------ Predict for ALL rows ------------ */
 
 predictBtn.addEventListener('click', async () => {
   if (!model) {
     log('❌ Model not loaded yet.');
     return;
   }
-  if (!inputRow) {
-    log('❌ No valid input row. Please upload a proper CSV.');
+  if (!dataRows || dataRows.length === 0) {
+    log('❌ No valid rows parsed. Please upload a proper preprocessed CSV.');
     return;
   }
 
   try {
-    log('Running prediction …');
+    log(`Running prediction for ${dataRows.length} customers …`);
 
-    // [1, num_features] tensor
-    const inputTensor = tf.tensor2d([inputRow]);
-
+    const inputTensor = tf.tensor2d(dataRows); // shape [N, num_features]
     const output = model.predict(inputTensor);
-    const data = await output.data();
-    const prob = data[0];
+    const probs = await output.data();        // Float32Array of length N
 
     inputTensor.dispose();
     output.dispose();
 
-    const probPercent = (prob * 100).toFixed(2);
-    const label = prob >= 0.5 ? 'Churned' : 'Not Churned';
+    let html = `
+      <thead>
+        <tr>
+          <th class="col-idx">#</th>
+          <th class="col-prob">Churn Prob.</th>
+          <th class="col-label">Class</th>
+        </tr>
+      </thead>
+      <tbody>
+    `;
 
-    // Update UI
-    resultCard.classList.remove('hidden');
-    predictedProbSpan.textContent = `${probPercent}%`;
+    let churnCount = 0;
 
-    if (label === 'Churned') {
-      predictedLabelSpan.textContent = 'Churned';
-      predictedLabelSpan.classList.remove('not-churn');
-      predictedLabelSpan.classList.add('churn');
-    } else {
-      predictedLabelSpan.textContent = 'Not Churned';
-      predictedLabelSpan.classList.remove('churn');
-      predictedLabelSpan.classList.add('not-churn');
+    for (let i = 0; i < probs.length; i++) {
+      const prob = probs[i];
+      const probPercent = (prob * 100).toFixed(2);
+      const label = prob >= 0.5 ? 'Churned' : 'Not Churned';
+      const badgeClass = label === 'Churned' ? 'badge churn' : 'badge not-churn';
+
+      if (label === 'Churned') churnCount++;
+
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${probPercent}%</td>
+          <td><span class="${badgeClass}">${label}</span></td>
+        </tr>
+      `;
     }
 
-    log(`✅ Prediction complete. Label: ${label}, Probability: ${probPercent}%`);
+    html += '</tbody>';
+    resultsTable.innerHTML = html;
+
+    totalCustomersSpan.textContent = String(probs.length);
+    totalChurnersSpan.textContent = String(churnCount);
+
+    resultCard.classList.remove('hidden');
+
+    log(`✅ Prediction complete. ${churnCount} out of ${probs.length} customers predicted to churn.`);
   } catch (err) {
     console.error(err);
-    log('❌ Error during prediction. See console for details.');
+    const msg = err && err.message ? err.message : String(err);
+    log('❌ Error during prediction: ' + msg);
   }
 });
 
-/* ------------------ Init ------------------ */
+/* ------------ Init ------------ */
 
 document.addEventListener('DOMContentLoaded', () => {
   log('Initializing app …');
