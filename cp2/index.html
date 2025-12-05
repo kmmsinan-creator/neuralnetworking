@@ -5,21 +5,17 @@
   <title>E-Commerce Churn Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-
-  <!-- Main Styles -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- TensorFlow.js (match converter version 4.22.0) -->
+  <!-- TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 
-  <!-- PapaParse for CSV parsing -->
+  <!-- PapaParse for CSV -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <div class="page">
-    <!-- Top gradient header -->
     <header class="hero">
       <div class="hero-inner">
         <h1 class="hero-title">E-Commerce Customer Churn Predictor</h1>
@@ -30,17 +26,14 @@
       </div>
     </header>
 
-    <!-- Main content -->
     <main class="main">
-      <!-- LEFT: Upload -->
       <section class="card">
         <h2 class="card-title">1. Upload Customer Data (CSV)</h2>
         <p class="card-text">
           Upload a CSV file containing <strong>multiple rows of preprocessed numeric features</strong> in the
-          <strong>same column order</strong> as used during model training in your Colab notebook.
+          <strong>same column order</strong> as used during model training.
           <br />
-          Example: the full <code>X_test_scaled</code> DataFrame saved with
-          <code>.to_csv("customers_scaled.csv")</code>.
+          Example: the full <code>X_test_scaled</code> saved with <code>.to_csv("customers_scaled.csv")</code>.
         </p>
 
         <div class="upload-area" id="uploadArea">
@@ -60,11 +53,10 @@
         </div>
       </section>
 
-      <!-- RIGHT: Predict + results -->
       <section class="card">
         <h2 class="card-title">2. Run Churn Prediction</h2>
         <p class="card-text">
-          Once the model is loaded and the CSV is parsed, click the button below to predict churn for
+          Once the model weights are loaded and the CSV is parsed, click the button below to predict churn for
           <strong>all customers</strong> in the file.
         </p>
 
@@ -73,7 +65,6 @@
           <span id="modelStatus" class="status-pill status-loading">Loading model…</span>
         </div>
 
-        <!-- Multi-customer result -->
         <div id="resultCard" class="result-card hidden">
           <h3>Prediction Results</h3>
           <p class="result-prob">
@@ -83,13 +74,10 @@
           </p>
 
           <div class="table-wrapper">
-            <table id="resultsTable" class="results-table">
-              <!-- filled dynamically by app.js -->
-            </table>
+            <table id="resultsTable" class="results-table"></table>
           </div>
         </div>
 
-        <!-- Log -->
         <div class="log-container">
           <h3 class="log-title">Log</h3>
           <pre id="log" class="log"></pre>
@@ -106,7 +94,6 @@
     </footer>
   </div>
 
-  <!-- Main App Logic -->
   <script src="app.js"></script>
 </body>
 </html>
