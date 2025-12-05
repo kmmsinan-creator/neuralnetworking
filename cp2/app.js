@@ -1,7 +1,7 @@
 let model = null;
-let dataRows = [];        // numeric rows from CSV
-let featureNames = [];    // header columns from CSV
-let numFeaturesModel = null;
+let dataRows = [];
+let featureNames = [];
+let numFeaturesModel = 30; // we know input_dim = 30 from your model
 
 const fileInput = document.getElementById('fileInput');
 const fileNameSpan = document.getElementById('fileName');
@@ -19,25 +19,94 @@ function log(message) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-/* ------------ Load TF.js model ------------ */
+/* ------------ Build the model architecture in JS ------------ */
+
+function buildModel() {
+  const m = tf.sequential();
+
+  // This must match your Python model architecture
+  m.add(tf.layers.dense({
+    units: 64,
+    activation: 'relu',
+    inputShape: [numFeaturesModel],
+    name: 'dense_11'
+  }));
+
+  m.add(tf.layers.dropout({
+    rate: 0.3,
+    name: 'dropout_8'
+  }));
+
+  m.add(tf.layers.dense({
+    units: 32,
+    activation: 'relu',
+    name: 'dense_12'
+  }));
+
+  m.add(tf.layers.dropout({
+    rate: 0.2,
+    name: 'dropout_9'
+  }));
+
+  m.add(tf.layers.dense({
+    units: 16,
+    activation: 'relu',
+    name: 'dense_13'
+  }));
+
+  m.add(tf.layers.dropout({
+    rate: 0.1,
+    name: 'dropout_10'
+  }));
+
+  m.add(tf.layers.dense({
+    units: 1,
+    activation: 'sigmoid',
+    name: 'output'
+  }));
+
+  return m;
+}
+
+/* ------------ Load weights.json and set model weights ------------ */
 
 async function loadModel() {
   try {
-    const modelUrl = './model/model.json';
-    log(`Loading TF.js model from ${modelUrl} …`);
+    log('Loading model weights from ./model/weights.json …');
 
-    model = await tf.loadLayersModel(modelUrl);
-    numFeaturesModel = model.inputs[0].shape[1];
+    // Build JS model with same architecture
+    model = buildModel();
 
-    log(`✅ Model loaded. Input features expected: ${numFeaturesModel}`);
+    // Load weights json
+    const response = await fetch('./model/weights.json');
+    if (!response.ok) {
+      throw new Error('Could not fetch weights.json');
+    }
+    const data = await response.json();
+
+    const shapes = data.shapes;
+    const weights = data.weights;
+
+    if (!Array.isArray(shapes) || !Array.isArray(weights) || shapes.length !== weights.length) {
+      throw new Error('Invalid weights.json format');
+    }
+
+    // Convert loaded weights to tensors with correct shapes
+    const weightTensors = weights.map((wArr, idx) => {
+      const shape = shapes[idx];
+      return tf.tensor(wArr, shape);
+    });
+
+    model.setWeights(weightTensors);
+
+    log(`✅ Model weights loaded. Input features expected: ${numFeaturesModel}`);
     modelStatus.textContent = 'Model loaded';
     modelStatus.classList.remove('status-loading');
     modelStatus.classList.add('status-ready');
     predictBtn.disabled = false;
   } catch (err) {
     console.error(err);
-    const msg = err && err.message ? err.message : String(err);
-    log('❌ Error loading model: ' + msg);
+    log('❌ Error loading model: ' + (err.message || String(err)));
     modelStatus.textContent = 'Model load failed';
   }
 }
@@ -75,7 +144,6 @@ fileInput.addEventListener('change', (e) => {
 
       rows.forEach((row, idx) => {
         const values = featureNames.map((name) => row[name]);
-
         const allEmpty = values.every(
           (v) => v === '' || v === null || v === undefined
         );
@@ -102,7 +170,7 @@ fileInput.addEventListener('change', (e) => {
         return;
       }
 
-      if (numFeaturesModel !== null && featureNames.length !== numFeaturesModel) {
+      if (featureNames.length !== numFeaturesModel) {
         log(
           `⚠️ WARNING: Model expects ${numFeaturesModel} features, ` +
           `but CSV has ${featureNames.length}. Check preprocessing and column order.`
@@ -112,7 +180,6 @@ fileInput.addEventListener('change', (e) => {
       dataRows = numericRows;
       log(`✅ Parsed ${dataRows.length} valid customer rows (skipped ${skipped}).`);
 
-      // Reset previous results
       resultCard.classList.add('hidden');
       resultsTable.innerHTML = '';
       totalCustomersSpan.textContent = '0';
@@ -140,9 +207,9 @@ predictBtn.addEventListener('click', async () => {
   try {
     log(`Running prediction for ${dataRows.length} customers …`);
 
-    const inputTensor = tf.tensor2d(dataRows); // shape [N, num_features]
+    const inputTensor = tf.tensor2d(dataRows);
     const output = model.predict(inputTensor);
-    const probs = await output.data();        // Float32Array of length N
+    const probs = await output.data();
 
     inputTensor.dispose();
     output.dispose();
@@ -188,8 +255,7 @@ predictBtn.addEventListener('click', async () => {
     log(`✅ Prediction complete. ${churnCount} out of ${probs.length} customers predicted to churn.`);
   } catch (err) {
     console.error(err);
-    const msg = err && err.message ? err.message : String(err);
-    log('❌ Error during prediction: ' + msg);
+    log('❌ Error during prediction: ' + (err.message || String(err)));
   }
 });
 
