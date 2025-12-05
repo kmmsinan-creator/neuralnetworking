@@ -20,19 +20,17 @@
         },
         "layers": [
           {
-               "class_name": "InputLayer",
-               "config":
-            {
-                  "batch_shape": [null, 30],
-                   "batch_input_shape": [null, 30],
-                    "batchInputShape": [null, 30],
-                    "inputShape": [30],
-                    "dtype": "float32",
-                    "sparse": false,
-                    "ragged": false,
-                    "name": "input_layer"
-           }
-        },
+  "class_name": "InputLayer",
+  "config": {
+    "batch_shape": [null, 30],
+    "batchInputShape": [null, 30],
+    "dtype": "float32",
+    "sparse": false,
+    "ragged": false,
+    "name": "input_layer"
+  }
+},
+
           {
             "class_name": "Dense",
             "config": {
