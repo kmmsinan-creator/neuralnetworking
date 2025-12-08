@@ -1,0 +1,276 @@
+/* ==========================================
+   GLOBAL PAGE STYLE
+========================================== */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: #0f1423;
+  color: #ffffff;
+}
+
+.page {
+  max-width: 1080px;
+  margin: auto;
+  padding: 20px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================
+   HEADER
+========================================== */
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.hero-title {
+  font-size: 2.4rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.hero-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.85;
+}
+
+/* ==========================================
+   CARD COMPONENT
+========================================== */
+.card {
+  background: #1b2233;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 28px;
+  box-shadow: 0px 0px 15px rgba(0,0,0,0.35);
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-size: 1.5rem;
+}
+
+/* ==========================================
+   BUTTONS
+========================================== */
+.btn,
+.btn-small {
+  cursor: pointer;
+  border-radius: 10px;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  transition: 0.25s;
+}
+
+.btn {
+  padding: 12px 20px;
+  font-size: 1rem;
+}
+
+.btn-small {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  margin-right: 6px;
+}
+
+.btn:hover,
+.btn-small:hover {
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #464f66;
+}
+
+.btn-green {
+  background: #1cc88a;
+}
+
+/* ==========================================
+   STATUS PILL
+========================================== */
+.status-pill {
+  padding: 8px 14px;
+  border-radius: 20px;
+  display: inline-block;
+  font-size: 0.9rem;
+  margin-left: 10px;
+}
+
+.status-loading {
+  background: #444;
+}
+
+.status-ready {
+  background: #1cc88a;
+}
+
+/* ==========================================
+   SUMMARY CARDS
+========================================== */
+.summary-section {
+  display: flex;
+  gap: 1.2rem;
+  margin-bottom: 28px;
+}
+
+.summary-card {
+  flex: 1;
+  background: #1c2538;
+  padding: 18px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 0 12px rgba(0,0,0,0.3);
+}
+
+.summary-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.summary-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 6px;
+  color: #4ea1ff;
+}
+
+/* ==========================================
+   LOAD DATA PANEL
+========================================== */
+.file-name {
+  margin-left: 12px;
+  opacity: 0.75;
+  font-size: 0.95rem;
+}
+
+/* ==========================================
+   FILTER PANEL
+========================================== */
+.filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================
+   SEARCH BOX
+========================================== */
+.search-box {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #121826;
+  color: #fff;
+  width: 220px;
+  margin-left: auto;
+}
+
+/* ==========================================
+   RESULTS TABLE
+========================================== */
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.results-table th,
+.results-table td {
+  padding: 12px;
+  border-bottom: 1px solid #2d3448;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.results-table tbody tr:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* ==========================================
+   BADGES (CHURN / NOT CHURN)
+========================================== */
+.badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.badge.churn {
+  background: #d9534f;
+}
+
+.badge.not-churn {
+  background: #1cc88a;
+}
+
+/* ==========================================
+   ROW HIGHLIGHT ANIMATIONS
+========================================== */
+@keyframes churnPulse {
+  0%   { background-color: rgba(255, 70, 70, 0.15); }
+  50%  { background-color: rgba(255, 70, 70, 0.32); }
+  100% { background-color: rgba(255, 70, 70, 0.15); }
+}
+
+.row-churn {
+  animation: churnPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes safeGlow {
+  0%   { background-color: rgba(70, 200, 120, 0.12); }
+  50%  { background-color: rgba(70, 200, 120, 0.27); }
+  100% { background-color: rgba(70, 200, 120, 0.12); }
+}
+
+.row-safe {
+  animation: safeGlow 1.6s ease-in-out infinite;
+}
+
+/* ==========================================
+   HISTOGRAM SECTION
+========================================== */
+#histSection {
+  margin-top: 25px;
+}
+
+/* ==========================================
+   LOG PANEL
+========================================== */
+.log-container {
+  margin-top: 20px;
+}
+
+.log {
+  background: #0d1220;
+  padding: 14px;
+  border-radius: 10px;
+  height: 150px;
+  overflow-y: auto;
+  color: #00ff00;
+  font-size: 0.85rem;
+}
+
+/* ==========================================
+   FOOTER
+========================================== */
+.footer {
+  text-align: center;
+  margin-top: 40px;
+  opacity: 0.5;
+  font-size: 0.95rem;
+}
