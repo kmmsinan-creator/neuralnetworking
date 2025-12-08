@@ -6,7 +6,7 @@ ASSUMPTIONS:
 */
 
 const CONFIG_URL = "config/preprocessing_config.json";
-const MODEL_URL = "model.json";
+const MODEL_URL = "weights.json";
 const SAMPLE_TRAIN_URL = "sample_data/train_web.csv";
 const SAMPLE_SCORE_URL = "sample_data/scoring_web.csv";
 
@@ -310,7 +310,7 @@ async function loadConfigAndModel() {
     return;
   }
 
-  // try to load pretrained model.json first
+  // try to load pretrained weights.json first
   try {
     model = await tf.loadLayersModel(MODEL_URL);
     model.compile({
@@ -319,10 +319,10 @@ async function loadConfigAndModel() {
       metrics: ["accuracy"],
     });
     setStatus("Pretrained model loaded and ready.");
-    log("TF.js model loaded from model.json.", "success");
+    log("TF.js model loaded from weights.json.", "success");
   } catch (err) {
     log(
-      `Failed to load TF.js model from model.json (${err.message}). Falling back to a fresh model.`,
+      `Failed to load TF.js model from weights.json (${err.message}). Falling back to a fresh model.`,
       "error"
     );
     try {
