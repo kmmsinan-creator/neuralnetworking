@@ -3,7 +3,8 @@
 =================================================== */
 
 const CSV_URL =
-  "https://raw.githubusercontent.com/kmmsinan-creator/neuralnetworking/main/cp2/data/customers_scaled.csv";
+ const CSV_URL =
+  "https://raw.githubusercontent.com/kmmsinan-creator/neuralnetworking/main/checkpoint/data/customers_scaled_with_id.csv";
 
 /* ===================================================
    GLOBAL STATE
