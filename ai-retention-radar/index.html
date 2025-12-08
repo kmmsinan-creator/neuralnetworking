@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Retention Radar – Churn Risk Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Client-side libraries (no backend required) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <div class="brand-text">
+        <span class="brand-title">AI Retention Radar</span>
+        <span class="brand-subtitle">E‑commerce churn &amp; revenue risk</span>
+      </div>
+    </div>
+    <div class="top-status">
+      <span id="app-status">Initializing…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- DATA + CONTROLS -->
+    <section class="panel">
+      <h2>1. Data &amp; Controls</h2>
+      <p class="muted">
+        Load the sample churn dataset from the repo or upload your own CSVs. Then preprocess, train and evaluate – entirely in the browser.
+      </p>
+
+      <div class="controls-grid">
+        <button id="btn-load-data" class="btn primary">
+          Load sample data
+        </button>
+        <button id="btn-preprocess" class="btn">
+          Preprocess
+        </button>
+        <button id="btn-reset" class="btn ghost">
+          Reset / Clear
+        </button>
+      </div>
+
+      <div class="field-group">
+        <div class="field">
+          <label for="file-train">Train CSV (must contain label column)</label>
+          <input type="file" id="file-train" accept=".csv" />
+          <small id="train-summary" class="muted">No train file loaded (using sample is fine).</small>
+        </div>
+
+        <div class="field">
+          <label for="file-score">Scoring CSV (customers to score)</label>
+          <input type="file" id="file-score" accept=".csv" />
+          <small id="score-summary" class="muted">No scoring file loaded (using sample is fine).</small>
+        </div>
+      </div>
+
+      <h3>Dataset summary (train)</h3>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Rows</div>
+          <div class="summary-value" id="summary-rows">–</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Columns</div>
+          <div class="summary-value" id="summary-cols">–</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Missing values</div>
+          <div class="summary-value" id="summary-missing">–</div>
+        </div>
+      </div>
+
+      <h3>Log console</h3>
+      <div id="log-console" class="log-console"></div>
+    </section>
+
+    <!-- TRAINING + METRICS -->
+    <section class="panel">
+      <h2>2. Train &amp; Evaluate</h2>
+      <p class="muted">
+        Train the TensorFlow.js model in the browser and inspect performance on the labeled training data.
+      </p>
+
+      <div class="controls-grid">
+        <button id="btn-train" class="btn">
+          Train in browser
+        </button>
+        <button id="btn-evaluate" class="btn">
+          Evaluate (metrics &amp; ROC)
+        </button>
+      </div>
+
+      <div class="threshold-container">
+        <label for="threshold-slider">
+          Decision threshold:
+          <span id="threshold-display">0.50</span>
+        </label>
+        <input
+          type="range"
+          id="threshold-slider"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.5"
+        />
+      </div>
+
+      <h3>Metrics</h3>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-label">AUC</span>
+          <span class="metric-value" id="metric-auc">–</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Accuracy</span>
+          <span class="metric-value" id="metric-accuracy">–</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Precision</span>
+          <span class="metric-value" id="metric-precision">–</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Recall</span>
+          <span class="metric-value" id="metric-recall">–</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">F1</span>
+          <span class="metric-value" id="metric-f1">–</span>
+        </div>
+      </div>
+
+      <h3>Confusion matrix</h3>
+      <table class="confusion-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Pred 0</th>
+            <th>Pred 1</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>True 0</th>
+            <td id="cm-tn">–</td>
+            <td id="cm-fp">–</td>
+          </tr>
+          <tr>
+            <th>True 1</th>
+            <td id="cm-fn">–</td>
+            <td id="cm-tp">–</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>ROC curve</h3>
+      <div class="chart-wrapper">
+        <canvas id="rocChart"></canvas>
+      </div>
+    </section>
+
+    <!-- SCORING + EXPORTS -->
+    <section class="panel">
+      <h2>3. Score &amp; Export</h2>
+      <p class="muted">
+        Predict churn risk for new customers, inspect top‑risk cases, and export the model and metrics.
+      </p>
+
+      <div class="controls-grid">
+        <button id="btn-score" class="btn primary">
+          Score / Predict
+        </button>
+      </div>
+
+      <div class="controls-grid exports">
+        <button id="btn-export-model" class="btn ghost small">
+          Export model (TF.js)
+        </button>
+        <button id="btn-export-metrics-json" class="btn ghost small">
+          Export metrics (JSON)
+        </button>
+        <button id="btn-export-metrics-csv" class="btn ghost small">
+          Export metrics (CSV)
+        </button>
+        <button id="btn-export-scores" class="btn ghost small">
+          Export scores (CSV)
+        </button>
+      </div>
+
+      <h3>Scored customers</h3>
+      <div class="table-wrapper">
+        <table id="score-table">
+          <thead>
+            <tr>
+              <th>Customer ID</th>
+              <th>Churn probability</th>
+              <th>Prediction</th>
+              <th>Recency</th>
+              <th>Frequency</th>
+              <th>Monetary</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- filled by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>
+      Deployed on GitHub Pages · All data &amp; inference run client‑side in your browser.
+    </span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
