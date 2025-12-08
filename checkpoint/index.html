@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <title>E-Commerce Churn Predictor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
   <link rel="stylesheet" href="styles.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
@@ -14,91 +14,76 @@
 </head>
 
 <body>
-  <div class="page">
+<div class="page">
 
-    <header class="hero">
-      <h1 class="hero-title">E-Commerce Customer Churn Predictor</h1>
-      <p class="hero-subtitle">
-        Neural Network (TensorFlow.js) running directly in your browser.
-      </p>
-    </header>
+  <header class="hero">
+    <h1 class="hero-title">E-Commerce Customer Churn Predictor</h1>
+    <p class="hero-subtitle">Neural Network (TensorFlow.js) running in your browser.</p>
+  </header>
 
-    <main class="main">
+  <main class="main">
 
-      <!-- SUMMARY CARDS -->
-      <section class="summary-section hidden" id="summarySection">
-        <div class="summary-card">
-          <h3>Total Customers</h3>
-          <p id="sumTotal" class="summary-value">0</p>
-        </div>
-        <div class="summary-card">
-          <h3>Predicted Churners</h3>
-          <p id="sumChurn" class="summary-value">0</p>
-        </div>
-        <div class="summary-card">
-          <h3>Churn Rate</h3>
-          <p id="sumRate" class="summary-value">0%</p>
-        </div>
+    <!-- SUMMARY CARDS -->
+    <section class="summary-section hidden" id="summarySection">
+      <div class="summary-card"><h3>Total Customers</h3><p id="sumTotal" class="summary-value">0</p></div>
+      <div class="summary-card"><h3>Predicted Churners</h3><p id="sumChurn" class="summary-value">0</p></div>
+      <div class="summary-card"><h3>Churn Rate</h3><p id="sumRate" class="summary-value">0%</p></div>
+    </section>
+
+    <!-- LOAD CSV BUTTON -->
+    <section class="card">
+      <h2>1. Load Customer Data</h2>
+      <button id="loadBtn" class="btn btn-secondary">📂 Load Data from GitHub</button>
+      <span id="fileName" class="file-name">No data loaded</span>
+    </section>
+
+    <!-- PREDICT BUTTON -->
+    <section class="card">
+      <h2>2. Predict Churn</h2>
+
+      <button id="predictBtn" class="btn btn-primary" disabled>🔮 Predict Churn</button>
+      <span id="modelStatus" class="status-pill status-loading">Loading model…</span>
+
+      <!-- FILTER PANEL -->
+      <div class="filter-panel hidden" id="filterPanel">
+        <button class="btn-small" onclick="sortTable('prob')">Prob ↑</button>
+        <button class="btn-small" onclick="sortTable('probDesc')">Prob ↓</button>
+        <button class="btn-small" onclick="filterChurn('all')">All</button>
+        <button class="btn-small" onclick="filterChurn('churn')">Churn</button>
+        <button class="btn-small" onclick="filterChurn('not')">Not Churn</button>
+
+        <button id="downloadBtn" class="btn-small btn-green" disabled onclick="downloadCSV()">⬇️ CSV</button>
+
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search CustomerID" oninput="searchCustomerID()" />
+      </div>
+
+      <!-- RESULTS -->
+      <div class="result-card hidden" id="resultCard">
+        <table id="resultsTable" class="results-table"></table>
+      </div>
+
+      <!-- HISTOGRAM -->
+      <section class="card hidden" id="histSection">
+        <h2>Churn Probability Distribution</h2>
+        <canvas id="histChart" height="130"></canvas>
       </section>
 
-      <!-- LOAD CSV BUTTON -->
-      <section class="card">
-        <h2>1. Load Customer Data</h2>
-        <button id="loadBtn" class="btn btn-secondary">📂 Load Data from GitHub</button>
-        <span id="fileName" class="file-name">No data loaded</span>
-      </section>
+      <!-- LOG -->
+      <div class="log-container">
+        <h3>Log</h3>
+        <pre id="log" class="log"></pre>
+      </div>
 
-      <!-- PREDICT BUTTON -->
-      <section class="card">
-        <h2>2. Predict Churn</h2>
+    </section>
 
-        <button id="predictBtn" class="btn btn-primary" disabled>🔮 Predict Churn</button>
-        <span id="modelStatus" class="status-pill status-loading">Loading model…</span>
+  </main>
 
-        <!-- FILTER BAR -->
-        <div class="filter-panel hidden" id="filterPanel">
-          <button class="btn-small" onclick="sortTable('prob')">Sort Prob ↑</button>
-          <button class="btn-small" onclick="sortTable('probDesc')">Sort Prob ↓</button>
-          <button class="btn-small" onclick="filterChurn('all')">All</button>
-          <button class="btn-small" onclick="filterChurn('churn')">Churned</button>
-          <button class="btn-small" onclick="filterChurn('not')">Not Churned</button>
+  <footer class="footer">
+    <p>Powered by TensorFlow.js • GitHub Pages</p>
+  </footer>
 
-          <button id="downloadBtn" class="btn-small btn-green" onclick="downloadCSV()" disabled>⬇️ Download CSV</button>
+</div>
 
-          <input 
-            type="text" 
-            id="searchInput" 
-            class="search-box" 
-            placeholder="🔍 Search CustomerID…" 
-            oninput="searchCustomerID()" 
-          />
-        </div>
-
-        <!-- RESULTS -->
-        <div class="result-card hidden" id="resultCard">
-          <table id="resultsTable" class="results-table"></table>
-        </div>
-
-        <!-- HISTOGRAM -->
-        <section class="card hidden" id="histSection">
-          <h2>Churn Probability Distribution</h2>
-          <canvas id="histChart" height="130"></canvas>
-        </section>
-
-        <!-- LOG -->
-        <div class="log-container">
-          <h3>Log</h3>
-          <pre id="log" class="log"></pre>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <p>Powered by TensorFlow.js • GitHub Pages</p>
-    </footer>
-
-  </div>
-
-  <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
