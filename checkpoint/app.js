@@ -1,25 +1,27 @@
 /* ===================================================
-   GLOBAL CONFIG
+   CONFIG
 =================================================== */
 
+// YOUR REAL CSV PATH IN GITHUB
 const CSV_URL =
- const CSV_URL =
   "https://raw.githubusercontent.com/kmmsinan-creator/neuralnetworking/main/checkpoint/data/customers_scaled_with_id.csv";
 
 /* ===================================================
    GLOBAL STATE
 =================================================== */
+
 let model = null;
 let rawData = [];
 let featureRows = [];
 let customerIds = [];
 let probsGlobal = [];
-let numFeaturesModel = 30;
 let histChart = null;
+let numFeaturesModel = 30;
 
 /* ===================================================
    DOM ELEMENTS
 =================================================== */
+
 const logEl = document.getElementById("log");
 const loadBtn = document.getElementById("loadBtn");
 const fileNameSpan = document.getElementById("fileName");
@@ -36,16 +38,18 @@ const sumChurn = document.getElementById("sumChurn");
 const sumRate = document.getElementById("sumRate");
 
 /* ===================================================
-   LOG HELPER
+   HELPERS
 =================================================== */
+
 function log(msg) {
   logEl.textContent += msg + "\n";
   logEl.scrollTop = logEl.scrollHeight;
 }
 
 /* ===================================================
-   BUILD TFJS MODEL
+   BUILD MODEL (MUST MATCH TRAINED NN)
 =================================================== */
+
 function buildModel() {
   const m = tf.sequential();
 
@@ -66,6 +70,7 @@ function buildModel() {
 /* ===================================================
    LOAD MODEL WEIGHTS
 =================================================== */
+
 async function loadModel() {
   try {
     log("Loading neural network weights…");
@@ -80,8 +85,8 @@ async function loadModel() {
 
     modelStatus.textContent = "Model loaded ✔";
     modelStatus.classList.add("status-ready");
-    log("✅ Model loaded successfully.");
 
+    log("✅ Model loaded successfully.");
   } catch (err) {
     log("❌ Error loading model: " + err);
   }
@@ -90,6 +95,7 @@ async function loadModel() {
 /* ===================================================
    LOAD CSV WHEN BUTTON IS CLICKED
 =================================================== */
+
 loadBtn.addEventListener("click", () => {
   log("Fetching CSV from GitHub…");
 
@@ -106,7 +112,7 @@ loadBtn.addEventListener("click", () => {
         return;
       }
 
-      processCSVRows(rawData);
+      processCSV(rawData);
 
       fileNameSpan.textContent = "Loaded from GitHub ✔";
       predictBtn.disabled = false;
@@ -114,8 +120,10 @@ loadBtn.addEventListener("click", () => {
       log(`Loaded ${rawData.length} rows from GitHub.`);
     },
 
-    error: (err) => {
-      log("❌ Error loading CSV: " + err);
+    error: (err, file, inputElem, reason) => {
+      console.error("PapaParse error:", err, reason);
+      let msg = err?.message || reason || "Unknown error";
+      log("❌ Error loading CSV: " + msg);
     }
   });
 });
@@ -123,7 +131,8 @@ loadBtn.addEventListener("click", () => {
 /* ===================================================
    PROCESS CSV ROWS
 =================================================== */
-function processCSVRows(rows) {
+
+function processCSV(rows) {
   featureRows = [];
   customerIds = [];
 
@@ -144,6 +153,7 @@ function processCSVRows(rows) {
 /* ===================================================
    RUN PREDICTION
 =================================================== */
+
 predictBtn.addEventListener("click", async () => {
   if (!model || featureRows.length === 0) {
     log("❌ Model or CSV not ready.");
@@ -161,9 +171,9 @@ predictBtn.addEventListener("click", async () => {
   input.dispose();
   out.dispose();
 
-  renderTable(probsGlobal);
-  updateSummary(probsGlobal);
-  renderHistogram(probsGlobal);
+  renderTable();
+  updateSummary();
+  renderHistogram();
 
   resultCard.classList.remove("hidden");
   filterPanel.classList.remove("hidden");
@@ -176,9 +186,10 @@ predictBtn.addEventListener("click", async () => {
 });
 
 /* ===================================================
-   TABLE RENDERING
+   RENDER TABLE WITH ROW ANIMATIONS
 =================================================== */
-function renderTable(probs) {
+
+function renderTable() {
   let html = `
     <thead>
       <tr>
@@ -191,8 +202,8 @@ function renderTable(probs) {
     <tbody>
   `;
 
-  probs.forEach((p, i) => {
-    const probPercent = (p * 100).toFixed(2);
+  probsGlobal.forEach((p, i) => {
+    const prob = (p * 100).toFixed(2);
     const label = p >= 0.5 ? "Churned" : "Not Churned";
     const rowClass = p >= 0.5 ? "row-churn" : "row-safe";
     const badgeClass = p >= 0.5 ? "badge churn" : "badge not-churn";
@@ -201,7 +212,7 @@ function renderTable(probs) {
       <tr class="${rowClass}">
         <td>${i + 1}</td>
         <td>${customerIds[i]}</td>
-        <td>${probPercent}%</td>
+        <td>${prob}%</td>
         <td><span class="${badgeClass}">${label}</span></td>
       </tr>
     `;
@@ -212,100 +223,145 @@ function renderTable(probs) {
 }
 
 /* ===================================================
-   SEARCH FUNCTION
+   SEARCH BY CUSTOMERID
 =================================================== */
+
 function searchCustomerID() {
   const term = document.getElementById("searchInput").value.toLowerCase();
 
-  const filteredProbs = [];
-  const filteredIds = [];
+  const filteredIndices = customerIds
+    .map((id, i) => (String(id).toLowerCase().includes(term) ? i : -1))
+    .filter(i => i !== -1);
 
-  probsGlobal.forEach((p, i) => {
-    const id = String(customerIds[i]).toLowerCase();
-    if (id.includes(term)) {
-      filteredProbs.push(p);
-      filteredIds.push(customerIds[i]);
-    }
+  let html = `
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>CustomerID</th>
+        <th>Churn Probability</th>
+        <th>Class</th>
+      </tr>
+    </thead>
+    <tbody>
+  `;
+
+  filteredIndices.forEach((i) => {
+    const p = probsGlobal[i];
+    const prob = (p * 100).toFixed(2);
+    const label = p >= 0.5 ? "Churned" : "Not Churned";
+    const rowClass = p >= 0.5 ? "row-churn" : "row-safe";
+    const badgeClass = p >= 0.5 ? "badge churn" : "badge not-churn";
+
+    html += `
+      <tr class="${rowClass}">
+        <td>${i + 1}</td>
+        <td>${customerIds[i]}</td>
+        <td>${prob}%</td>
+        <td><span class="${badgeClass}">${label}</span></td>
+      </tr>
+    `;
   });
 
-  const backupIds = [...customerIds];
-  const backupProbs = [...probsGlobal];
-
-  customerIds = filteredIds;
-  probsGlobal = filteredProbs;
-
-  renderTable(filteredProbs);
-
-  customerIds = backupIds;
-  probsGlobal = backupProbs;
+  html += "</tbody>";
+  resultsTable.innerHTML = html;
 }
 
 /* ===================================================
    SORTING
 =================================================== */
+
 function sortTable(type) {
-  let combined = probsGlobal.map((p, i) => ({ prob: p, id: customerIds[i] }));
+  let arr = probsGlobal.map((p, i) => ({
+    prob: p,
+    id: customerIds[i]
+  }));
 
-  if (type === "prob") combined.sort((a, b) => a.prob - b.prob);
-  if (type === "probDesc") combined.sort((a, b) => b.prob - a.prob);
+  if (type === "prob") arr.sort((a, b) => a.prob - b.prob);
+  if (type === "probDesc") arr.sort((a, b) => b.prob - a.prob);
 
-  probsGlobal = combined.map(r => r.prob);
-  customerIds = combined.map(r => r.id);
+  probsGlobal = arr.map(x => x.prob);
+  customerIds = arr.map(x => x.id);
 
-  renderTable(probsGlobal);
+  renderTable();
 }
 
 /* ===================================================
-   FILTER
+   FILTER CHURN / NOT CHURN
 =================================================== */
-function filterChurn(type) {
-  const filteredProbs = [];
-  const filteredIds = [];
 
-  probsGlobal.forEach((p, i) => {
-    if (type === "churn" && p < 0.5) return;
-    if (type === "not" && p >= 0.5) return;
-    filteredProbs.push(p);
-    filteredIds.push(customerIds[i]);
+function filterChurn(type) {
+  const indices = probsGlobal
+    .map((p, i) => {
+      if (type === "churn" && p >= 0.5) return i;
+      if (type === "not" && p < 0.5) return i;
+      if (type === "all") return i;
+      return -1;
+    })
+    .filter(i => i !== -1);
+
+  let html = `
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>CustomerID</th>
+        <th>Churn Probability</th>
+        <th>Class</th>
+      </tr>
+    </thead>
+    <tbody>
+  `;
+
+  indices.forEach((i) => {
+    const p = probsGlobal[i];
+    const prob = (p * 100).toFixed(2);
+    const label = p >= 0.5 ? "Churned" : "Not Churned";
+    const rowClass = p >= 0.5 ? "row-churn" : "row-safe";
+    const badgeClass = p >= 0.5 ? "badge churn" : "badge not-churn";
+
+    html += `
+      <tr class="${rowClass}">
+        <td>${i + 1}</td>
+        <td>${customerIds[i]}</td>
+        <td>${prob}%</td>
+        <td><span class="${badgeClass}">${label}</span></td>
+      </tr>
+    `;
   });
 
-  const backupIds = [...customerIds];
-  const backupProbs = [...probsGlobal];
-
-  customerIds = filteredIds;
-  probsGlobal = filteredProbs;
-
-  renderTable(filteredProbs);
-
-  customerIds = backupIds;
-  probsGlobal = backupProbs;
+  html += "</tbody>";
+  resultsTable.innerHTML = html;
 }
 
 /* ===================================================
    SUMMARY CARDS
 =================================================== */
-function updateSummary(probs) {
-  const total = probs.length;
-  const churn = probs.filter(p => p >= 0.5).length;
+
+function updateSummary() {
+  const total = probsGlobal.length;
+  const churnCount = probsGlobal.filter(p => p >= 0.5).length;
 
   sumTotal.textContent = total;
-  sumChurn.textContent = churn;
-  sumRate.textContent = ((churn / total) * 100).toFixed(2) + "%";
+  sumChurn.textContent = churnCount;
+  sumRate.textContent = ((churnCount / total) * 100).toFixed(2) + "%";
 }
 
 /* ===================================================
    HISTOGRAM
 =================================================== */
-function renderHistogram(probs) {
+
+function renderHistogram() {
   if (histChart) histChart.destroy();
 
-  const bins = new Array(10).fill(0);
-  probs.forEach(p => bins[Math.min(9, Math.floor(p * 10))]++);
+  const bins = Array(10).fill(0);
+  probsGlobal.forEach(p => bins[Math.min(9, Math.floor(p * 10))]++);
 
   histChart = new Chart(document.getElementById("histChart"), {
     type: "bar",
     data: {
-      labels: ["0–10%","10–20%","20–30%","30–40%","40–50%","50–60%","60–70%","70–80%","80–90%","90–100%"],
+      labels: [
+        "0–10%", "10–20%", "20–30%", "30–40%", "40–50%",
+        "50–60%", "60–70%", "70–80%", "80–90%", "90–100%"
+      ],
       datasets: [{
         label: "Customers",
         data: bins,
@@ -319,6 +375,7 @@ function renderHistogram(probs) {
 /* ===================================================
    DOWNLOAD CSV
 =================================================== */
+
 function downloadCSV() {
   let rows = [["CustomerID", "Probability", "Label"]];
 
@@ -340,9 +397,10 @@ function downloadCSV() {
 }
 
 /* ===================================================
-   INITIALIZATION
+   INIT
 =================================================== */
+
 document.addEventListener("DOMContentLoaded", () => {
   log("Initializing app…");
-  loadModel();       // Load NN model weights
+  loadModel();
 });
