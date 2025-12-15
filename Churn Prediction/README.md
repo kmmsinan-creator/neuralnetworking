@@ -65,9 +65,13 @@ All input features are preprocessed and scaled using the same pipeline as model 
 
 ## 🏗️ Project Structure
 ├── app.py # Streamlit web application
+
 ├── churn_final_model.keras # Final tuned TensorFlow model
+
 ├── scaler.pkl # Feature scaler
+
 ├── requirements.txt # Python dependencies
+
 ├── README.md # Project documentation
 
 ----
