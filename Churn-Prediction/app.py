@@ -13,7 +13,7 @@ st.set_page_config(
 # ---------------- Path Handling (CRITICAL FIX) ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "churn_final_model_fixed.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "churn_deployable.h5")
 SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
 
 # ---------------- Load Model & Scaler ----------------
