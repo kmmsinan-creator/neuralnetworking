@@ -4,19 +4,22 @@ import pickle
 import tensorflow as tf
 import os
 
+# -------------------------------------------------
+# Page configuration
+# -------------------------------------------------
 st.set_page_config(
     page_title="E-Commerce Churn Prediction",
     page_icon="🛒",
     layout="centered"
 )
 
-# ---------------- Path Handling (CRITICAL FIX) ----------------
+# -------------------------------------------------
+# Load model & scaler (cached)
+# -------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-MODEL_PATH = os.path.join(BASE_DIR, "churn_deployable.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "churn_final_model_deploy.h5")
 SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
 
-# ---------------- Load Model & Scaler ----------------
 @st.cache_resource
 def load_model_and_scaler():
     model = tf.keras.models.load_model(
@@ -29,39 +32,91 @@ def load_model_and_scaler():
 
 model, scaler = load_model_and_scaler()
 
-# ---------------- UI ----------------
+# -------------------------------------------------
+# App title & description
+# -------------------------------------------------
 st.title("🛒 E-Commerce Customer Churn Prediction")
+
 st.markdown(
-    "This web app predicts whether an e-commerce customer is likely to churn "
-    "using a deployed TensorFlow deep learning model."
+    """
+This web application predicts whether an **e-commerce customer is likely to churn**
+using a **TensorFlow Neural Network model**.
+
+- Trained on historical customer behavior data  
+- Handles class imbalance  
+- Evaluated using **ROC–AUC (≈ 0.98)**  
+"""
 )
 
 st.divider()
 
-with st.form("churn_form"):
-    st.subheader("Customer Details")
+# -------------------------------------------------
+# Input section
+# -------------------------------------------------
+st.subheader("🔢 Enter Customer Feature Values")
 
-    tenure = st.number_input("Tenure (months)", min_value=0, max_value=120, value=12)
-    hours = st.number_input("Hours Spent on App (per day)", min_value=0.0, max_value=24.0, value=3.0)
-    devices = st.number_input("Number of Registered Devices", min_value=1, max_value=10, value=2)
-    satisfaction = st.slider("Satisfaction Score", 1, 5, 3)
-    cashback = st.number_input("Cashback Amount", min_value=0.0, max_value=1000.0, value=50.0)
+st.markdown(
+    "Enter the customer information below. All inputs must match the same order "
+    "used during model training."
+)
 
-    submit = st.form_submit_button("Predict Churn")
+inputs = []
+for i in range(29):
+    value = st.number_input(
+        f"Feature {i + 1}",
+        value=0.0,
+        step=1.0
+    )
+    inputs.append(value)
 
-if submit:
-    X = np.array([[tenure, hours, devices, satisfaction, cashback]])
+st.divider()
+
+# -------------------------------------------------
+# Threshold selection
+# -------------------------------------------------
+st.subheader("⚙️ Decision Threshold")
+
+threshold = st.slider(
+    "Select churn decision threshold",
+    min_value=0.1,
+    max_value=0.9,
+    value=0.5,
+    step=0.05
+)
+
+st.caption(
+    "Lower threshold → catch more churners (higher recall)  \n"
+    "Higher threshold → fewer false alarms (higher precision)"
+)
+
+# -------------------------------------------------
+# Prediction
+# -------------------------------------------------
+if st.button("🚀 Predict Churn"):
+    X = np.array(inputs).reshape(1, -1)
     X_scaled = scaler.transform(X)
 
     prob = model.predict(X_scaled)[0][0]
 
-    st.subheader("Prediction Result")
-    st.metric("Churn Probability", f"{prob * 100:.2f}%")
+    st.divider()
+    st.subheader("📊 Prediction Result")
 
-    if prob >= 0.5:
-        st.error("⚠️ Customer is likely to churn")
+    st.metric(
+        label="Churn Probability",
+        value=f"{prob:.2%}"
+    )
+
+    if prob >= threshold:
+        st.error("⚠️ Customer is **likely to churn**")
     else:
-        st.success("✅ Customer is likely to stay")
+        st.success("✅ Customer is **unlikely to churn**")
 
+# -------------------------------------------------
+# Footer
+# -------------------------------------------------
 st.divider()
-st.caption("TensorFlow Neural Network • Streamlit Cloud Deployment")
+st.caption(
+    "Model: TensorFlow Neural Network | "
+    "Metric: ROC–AUC | "
+    "Deployment: Streamlit Cloud"
+)
