@@ -1,21 +1,20 @@
 import streamlit as st
 import numpy as np
-import pickle
 import tensorflow as tf
-import pandas as pd
+import pickle
 
-# ------------------------------------
-# Page config
-# ------------------------------------
+# -------------------------------
+# Page Config
+# -------------------------------
 st.set_page_config(
-    page_title="Customer Churn Prediction",
-    page_icon="📉",
+    page_title="E-Commerce Churn Prediction",
+    page_icon="🛒",
     layout="centered"
 )
 
-# ------------------------------------
-# Load model & scaler
-# ------------------------------------
+# -------------------------------
+# Load Model & Scaler
+# -------------------------------
 @st.cache_resource
 def load_model_and_scaler():
     model = tf.keras.models.load_model(
@@ -28,49 +27,49 @@ def load_model_and_scaler():
 
 model, scaler = load_model_and_scaler()
 
-# ------------------------------------
-# Title & description
-# ------------------------------------
-st.title("📊 Customer Churn Prediction App")
+# -------------------------------
+# Title
+# -------------------------------
+st.title("🛒 E-Commerce Customer Churn Prediction")
 st.markdown(
     """
-This application predicts whether a customer is **likely to churn**  
-based on **8 key business-focused behavioral features**.
-
-👉 Designed for **business decision-making**  
-👉 Lightweight, fast & interpretable
-"""
+    This application predicts **customer churn risk** using  
+    **8 business-critical behavioral features** powered by a  
+    **TensorFlow Neural Network**.
+    """
 )
 
 st.divider()
 
-# ------------------------------------
-# Input form
-# ------------------------------------
-st.subheader("🔢 Enter Customer Details")
+# -------------------------------
+# Input Section
+# -------------------------------
+st.subheader("📋 Customer Information")
 
-with st.form("churn_form"):
-    Tenure = st.number_input("Tenure (months)", min_value=0, max_value=100, value=12)
-    SatisfactionScore = st.slider("Satisfaction Score (1 = Low, 5 = High)", 1, 5, 3)
-    Complain = st.selectbox("Has the customer complained?", ["No", "Yes"])
-    DaySinceLastOrder = st.number_input("Days Since Last Order", min_value=0, max_value=365, value=30)
-    OrderCount = st.number_input("Total Order Count", min_value=0, max_value=500, value=10)
-    CashbackAmount = st.number_input("Cashback Amount", min_value=0.0, max_value=5000.0, value=100.0)
-    HourSpendOnApp = st.number_input("Hours Spent on App (per month)", min_value=0.0, max_value=500.0, value=20.0)
-    NumberOfDeviceRegistered = st.number_input("Number of Devices Registered", min_value=1, max_value=10, value=2)
+col1, col2 = st.columns(2)
 
-    submit = st.form_submit_button("🔍 Predict Churn")
+with col1:
+    Tenure = st.number_input("Tenure (months)", 0, 100, 10)
+    SatisfactionScore = st.slider("Satisfaction Score", 1, 5, 3)
+    OrderCount = st.number_input("Orders Last Month", 0, 50, 2)
+    HourSpendOnApp = st.number_input("Hours Spent on App", 0.0, 24.0, 2.5)
 
-# ------------------------------------
+with col2:
+    Complain = st.selectbox("Complaint Raised?", ["No", "Yes"])
+    DaySinceLastOrder = st.number_input("Days Since Last Order", 0, 365, 30)
+    CashbackAmount = st.number_input("Cashback Amount", 0.0, 5000.0, 100.0)
+    NumberOfDeviceRegistered = st.number_input("Devices Registered", 1, 10, 2)
+
+Complain = 1 if Complain == "Yes" else 0
+
+# -------------------------------
 # Prediction
-# ------------------------------------
-if submit:
-    complain_value = 1 if Complain == "Yes" else 0
-
+# -------------------------------
+if st.button("🔍 Predict Churn Risk"):
     input_data = np.array([[
         Tenure,
         SatisfactionScore,
-        complain_value,
+        Complain,
         DaySinceLastOrder,
         OrderCount,
         CashbackAmount,
@@ -79,35 +78,31 @@ if submit:
     ]])
 
     input_scaled = scaler.transform(input_data)
-    probability = model.predict(input_scaled)[0][0]
+    prob = model.predict(input_scaled)[0][0]
 
-    st.divider()
-    st.subheader("📈 Prediction Result")
+    st.subheader("📊 Prediction Result")
 
     st.metric(
         label="Churn Probability",
-        value=f"{probability:.2%}"
+        value=f"{prob:.2%}"
     )
 
-    if probability >= 0.5:
-        st.error("⚠️ High Risk: Customer is likely to churn")
+    if prob >= 0.5:
+        st.error("⚠️ High Risk: Customer Likely to Churn")
+        st.markdown(
+            """
+            **Recommended Actions:**
+            - Provide targeted offers
+            - Improve customer support
+            - Personalized engagement
+            """
+        )
     else:
-        st.success("✅ Low Risk: Customer is likely to stay")
-
-    st.caption(
-        "Prediction is based on a neural network trained using business-critical features."
-    )
-
-# ------------------------------------
-# Footer
-# ------------------------------------
-st.divider()
-st.markdown(
-    """
-**Model:** Neural Network (TensorFlow)  
-**Features:** 8 business-selected inputs  
-**Metric:** ROC–AUC optimized  
-
-Developed for academic & business demonstration.
-"""
-)
+        st.success("✅ Low Risk: Customer Likely to Stay")
+        st.markdown(
+            """
+            **Recommended Actions:**
+            - Loyalty rewards
+            - Upsell premium services
+            """
+        )
