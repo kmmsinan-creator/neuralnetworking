@@ -39,7 +39,7 @@ model, scaler = load_model_and_scaler()
 # =====================================================
 # App Title & Description
 # =====================================================
-st.title("📉 Customer Churn Prediction (Business Model)")
+st.title("📉 Customer Churn Prediction")
 st.markdown(
     """
 This application predicts whether a customer is likely to **churn**
