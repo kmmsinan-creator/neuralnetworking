@@ -5,7 +5,7 @@ import tensorflow as tf
 import os
 
 # -------------------------------------------------
-# Page configuration
+# Page config
 # -------------------------------------------------
 st.set_page_config(
     page_title="E-Commerce Churn Prediction",
@@ -14,65 +14,120 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# Load model & scaler (cached)
+# Paths
 # -------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "churn_final_model_deploy.h5")
 SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
 
+# -------------------------------------------------
+# Load model & scaler
+# -------------------------------------------------
 @st.cache_resource
 def load_model_and_scaler():
-    model = tf.keras.models.load_model(
-        MODEL_PATH,
-        compile=False
-    )
+    if not os.path.exists(MODEL_PATH):
+        st.error("❌ Model file not found. Please check deployment files.")
+        st.stop()
+
+    if not os.path.exists(SCALER_PATH):
+        st.error("❌ Scaler file not found. Please check deployment files.")
+        st.stop()
+
+    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
     with open(SCALER_PATH, "rb") as f:
         scaler = pickle.load(f)
+
     return model, scaler
+
 
 model, scaler = load_model_and_scaler()
 
 # -------------------------------------------------
-# App title & description
+# Feature definitions (29 features)
+# -------------------------------------------------
+FEATURES = [
+    ("Tenure", "Number of months the customer has stayed"),
+    ("PreferredLoginDevice", "Mobile = 1, Computer = 0"),
+    ("CityTier", "1 = Metro, 2 = Urban, 3 = Rural"),
+    ("WarehouseToHome", "Distance from warehouse to home (km)"),
+    ("PreferredPaymentMode", "Encoded payment mode"),
+    ("Gender", "Male = 1, Female = 0"),
+    ("HourSpendOnApp", "Average hours spent on app per day"),
+    ("NumberOfDeviceRegistered", "Total registered devices"),
+    ("PreferedOrderCat", "Encoded preferred order category"),
+    ("SatisfactionScore", "Customer satisfaction score (1–5)"),
+    ("MaritalStatus", "Married = 1, Single = 0"),
+    ("NumberOfAddress", "Number of saved addresses"),
+    ("Complain", "Complaint raised last month (1 = Yes, 0 = No)"),
+    ("OrderAmountHikeFromlastYear", "Increase in order amount (%)"),
+    ("CouponUsed", "Coupons used last month"),
+    ("OrderCount", "Orders placed last month"),
+    ("DaySinceLastOrder", "Days since last order"),
+    ("CashbackAmount", "Average cashback last month"),
+    ("Feature19", "Encoded feature"),
+    ("Feature20", "Encoded feature"),
+    ("Feature21", "Encoded feature"),
+    ("Feature22", "Encoded feature"),
+    ("Feature23", "Encoded feature"),
+    ("Feature24", "Encoded feature"),
+    ("Feature25", "Encoded feature"),
+    ("Feature26", "Encoded feature"),
+    ("Feature27", "Encoded feature"),
+    ("Feature28", "Encoded feature"),
+    ("Feature29", "Encoded feature"),
+]
+
+# -------------------------------------------------
+# Title & description
 # -------------------------------------------------
 st.title("🛒 E-Commerce Customer Churn Prediction")
 
-st.markdown(
-    """
-This web application predicts whether an **e-commerce customer is likely to churn**
-using a **TensorFlow Neural Network model**.
+st.markdown("""
+This application predicts whether a customer is **likely to churn**
+using a **TensorFlow Neural Network** trained on real e-commerce data.
 
-- Trained on historical customer behavior data  
-- Handles class imbalance  
-- Evaluated using **ROC–AUC (≈ 0.98)**  
-"""
-)
+**Model Performance:**  
+- ROC–AUC ≈ **0.98**
+""")
+
+# -------------------------------------------------
+# How to use
+# -------------------------------------------------
+with st.expander("ℹ️ How to use this app"):
+    st.markdown("""
+    1. Enter customer details below  
+    2. Adjust the churn decision threshold  
+    3. Click **Predict Churn**  
+    4. View churn probability and prediction  
+
+    All values must be numeric because categorical variables
+    were encoded during training.
+    """)
 
 st.divider()
 
 # -------------------------------------------------
 # Input section
 # -------------------------------------------------
-st.subheader("🔢 Enter Customer Feature Values")
-
-st.markdown(
-    "Enter the customer information below. All inputs must match the same order "
-    "used during model training."
-)
+st.subheader("🔢 Customer Information")
 
 inputs = []
-for i in range(29):
-    value = st.number_input(
-        f"Feature {i + 1}",
-        value=0.0,
-        step=1.0
-    )
-    inputs.append(value)
+cols = st.columns(2)
+
+for i, (name, desc) in enumerate(FEATURES):
+    with cols[i % 2]:
+        val = st.number_input(
+            label=name,
+            help=desc,
+            value=0.0
+        )
+        inputs.append(val)
 
 st.divider()
 
 # -------------------------------------------------
-# Threshold selection
+# Threshold
 # -------------------------------------------------
 st.subheader("⚙️ Decision Threshold")
 
@@ -85,8 +140,8 @@ threshold = st.slider(
 )
 
 st.caption(
-    "Lower threshold → catch more churners (higher recall)  \n"
-    "Higher threshold → fewer false alarms (higher precision)"
+    "Lower threshold → higher recall (catch more churners)\n"
+    "Higher threshold → higher precision (fewer false alarms)"
 )
 
 # -------------------------------------------------
@@ -101,10 +156,7 @@ if st.button("🚀 Predict Churn"):
     st.divider()
     st.subheader("📊 Prediction Result")
 
-    st.metric(
-        label="Churn Probability",
-        value=f"{prob:.2%}"
-    )
+    st.metric("Churn Probability", f"{prob:.2%}")
 
     if prob >= threshold:
         st.error("⚠️ Customer is **likely to churn**")
@@ -116,7 +168,7 @@ if st.button("🚀 Predict Churn"):
 # -------------------------------------------------
 st.divider()
 st.caption(
-    "Model: TensorFlow Neural Network | "
+    "Model: TensorFlow ANN | "
     "Metric: ROC–AUC | "
     "Deployment: Streamlit Cloud"
 )
