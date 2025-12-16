@@ -1,3 +1,8 @@
+# =====================================================
+# CUSTOMER CHURN PREDICTION – FINAL STREAMLIT APP
+# =====================================================
+
+import os
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -14,22 +19,27 @@ st.set_page_config(
 )
 
 # =====================================================
+# PATH-SAFE FILE LOADING (CRITICAL FIX)
+# =====================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "churn_model_business.h5")
+SCALER_PATH = os.path.join(BASE_DIR, "scaler_business.pkl")
+
+# =====================================================
 # LOAD MODEL & SCALER
 # =====================================================
 @st.cache_resource
 def load_model_and_scaler():
-    model = tf.keras.models.load_model(
-        "churn_model_business.h5",
-        compile=False
-    )
-    with open("scaler_business.pkl", "rb") as f:
+    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    with open(SCALER_PATH, "rb") as f:
         scaler = pickle.load(f)
     return model, scaler
 
 model, scaler = load_model_and_scaler()
 
 # =====================================================
-# FEATURE DEFINITIONS
+# FEATURE DEFINITIONS (BUSINESS FEATURES)
 # =====================================================
 FEATURES = [
     "Tenure",
@@ -39,127 +49,118 @@ FEATURES = [
     "OrderCount",
     "CashbackAmount",
     "HourSpendOnApp",
-    "NumberOfDeviceRegistered",
+    "NumberOfDeviceRegistered"
 ]
 
 FEATURE_HELP = {
     "Tenure": "Number of months the customer has been with the company",
-    "SatisfactionScore": "Customer satisfaction score (1 = very low, 5 = very high)",
-    "Complain": "Whether the customer has raised any complaint",
-    "DaySinceLastOrder": "Days passed since the customer's last order",
-    "OrderCount": "Total number of orders placed by the customer",
-    "CashbackAmount": "Total cashback received by the customer",
-    "HourSpendOnApp": "Average hours spent per day on the app",
-    "NumberOfDeviceRegistered": "Number of devices registered on the account",
+    "SatisfactionScore": "Customer satisfaction rating (1 = very low, 5 = very high)",
+    "Complain": "Whether the customer has raised complaints (1 = Yes, 0 = No)",
+    "DaySinceLastOrder": "Days since the customer's last order",
+    "OrderCount": "Total number of orders placed",
+    "CashbackAmount": "Total cashback received",
+    "HourSpendOnApp": "Average hours spent on the app per day",
+    "NumberOfDeviceRegistered": "Number of devices registered by the customer"
 }
 
 # =====================================================
-# TITLE & INTRO
+# APP HEADER
 # =====================================================
 st.title("📉 Customer Churn Prediction")
 
-st.markdown("""
+st.markdown(
+    """
 This application predicts whether a customer is **likely to churn**
 using **8 high-impact business features**.
 
-### Model Highlights
-- 🚀 Fast real-time inference  
-- 📊 ROC-AUC ≈ **0.88**  
-- 💼 Business-interpretable features  
-""")
+**Optimized for:**
+- 🎯 Strong predictive performance  
+- ⚡ Fast real-time inference  
+- 💼 Business interpretability  
+"""
+)
 
 st.divider()
 
 # =====================================================
-# SINGLE CUSTOMER PREDICTION
+# SINGLE CUSTOMER INPUT
 # =====================================================
-st.header("🧾 Single Customer Prediction")
+st.subheader("🧾 Customer Information")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    tenure = st.number_input(
-        "Tenure (months)", min_value=0, max_value=120, value=6,
-        help=FEATURE_HELP["Tenure"]
-    )
-
-    satisfaction = st.slider(
-        "Satisfaction Score", min_value=1, max_value=5, value=2,
-        help=FEATURE_HELP["SatisfactionScore"]
-    )
-
-    complain = st.selectbox(
-        "Customer Complained?", ["No", "Yes"],
-        help=FEATURE_HELP["Complain"]
-    )
-
-    days_last = st.number_input(
-        "Days Since Last Order", min_value=0, max_value=365, value=30,
-        help=FEATURE_HELP["DaySinceLastOrder"]
-    )
+    tenure = st.number_input("Tenure (months)", 0, 120, 6, help=FEATURE_HELP["Tenure"])
+    satisfaction = st.slider("Satisfaction Score", 1, 5, 3, help=FEATURE_HELP["SatisfactionScore"])
+    cashback = st.number_input("Cashback Amount", 0.0, 1000.0, 10.0, help=FEATURE_HELP["CashbackAmount"])
+    days_last_order = st.number_input("Days Since Last Order", 0, 365, 60, help=FEATURE_HELP["DaySinceLastOrder"])
 
 with col2:
-    orders = st.number_input(
-        "Total Order Count", min_value=0, max_value=500, value=5,
-        help=FEATURE_HELP["OrderCount"]
-    )
+    order_count = st.number_input("Total Order Count", 0, 1000, 5, help=FEATURE_HELP["OrderCount"])
+    hours_app = st.slider("Hours Spent on App", 0.0, 10.0, 1.0, help=FEATURE_HELP["HourSpendOnApp"])
+    devices = st.number_input("Registered Devices", 1, 10, 2, help=FEATURE_HELP["NumberOfDeviceRegistered"])
+    complain = st.selectbox("Customer Complained?", ["No", "Yes"], help=FEATURE_HELP["Complain"])
 
-    cashback = st.number_input(
-        "Cashback Amount", min_value=0.0, max_value=10000.0, value=10.0,
-        help=FEATURE_HELP["CashbackAmount"]
-    )
+complain = 1 if complain == "Yes" else 0
 
-    hours = st.slider(
-        "Hours Spent on App (per day)", min_value=0.0, max_value=10.0, value=1.0,
-        help=FEATURE_HELP["HourSpendOnApp"]
-    )
-
-    devices = st.number_input(
-        "Number of Registered Devices", min_value=1, max_value=10, value=2,
-        help=FEATURE_HELP["NumberOfDeviceRegistered"]
-    )
+# =====================================================
+# DECISION THRESHOLD
+# =====================================================
+st.divider()
+st.subheader("⚙️ Decision Threshold")
 
 threshold = st.slider(
-    "Decision Threshold",
-    min_value=0.1, max_value=0.9, value=0.3,
-    help="Lower threshold = catch more churners (higher recall)"
+    "Select churn decision threshold",
+    min_value=0.10,
+    max_value=0.90,
+    value=0.30,
+    step=0.05
 )
 
-if st.button("🚀 Predict Churn"):
+st.caption("Lower threshold → catch more churners (higher recall)")
+st.caption("Higher threshold → fewer false alarms (higher precision)")
+
+# =====================================================
+# PREDICTION
+# =====================================================
+st.divider()
+
+if st.button("🚀 Predict Churn", use_container_width=True):
+
     input_data = np.array([[
         tenure,
         satisfaction,
-        1 if complain == "Yes" else 0,
-        days_last,
-        orders,
+        complain,
+        days_last_order,
+        order_count,
         cashback,
-        hours,
+        hours_app,
         devices
     ]])
 
     input_scaled = scaler.transform(input_data)
-    prob = float(model.predict(input_scaled)[0][0])
+    prob = model.predict(input_scaled)[0][0]
 
     st.subheader("📊 Prediction Result")
-    st.metric("Churn Probability", f"{prob*100:.2f}%")
+    st.metric("Churn Probability", f"{prob * 100:.2f}%")
 
     if prob >= threshold:
-        st.error("❌ Customer is **LIKELY TO CHURN**")
+        st.error("❌ Customer is LIKELY to churn")
     else:
-        st.success("✅ Customer is **UNLIKELY TO CHURN**")
-
-st.divider()
+        st.success("✅ Customer is UNLIKELY to churn")
 
 # =====================================================
 # BATCH CSV PREDICTION
 # =====================================================
-st.header("📂 Batch CSV Prediction")
+st.divider()
+st.subheader("📂 Batch Prediction (CSV Upload)")
 
-st.markdown("""
+st.markdown(
+    """
 Upload a CSV file with **exactly these columns**:
 Tenure, SatisfactionScore, Complain, DaySinceLastOrder,
-OrderCount, CashbackAmount, HourSpendOnApp, NumberOfDeviceRegistered
-""")
+OrderCount, CashbackAmount, HourSpendOnApp, NumberOfDeviceRegistered"""
+)
 
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
@@ -167,30 +168,24 @@ if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
     if not all(col in df.columns for col in FEATURES):
-        st.error("❌ CSV file does not contain all required columns.")
+        st.error("❌ CSV columns do not match required feature list.")
     else:
         df_scaled = scaler.transform(df[FEATURES])
-        df["Churn_Probability"] = model.predict(df_scaled).flatten()
-        df["Churn_Prediction"] = np.where(
-            df["Churn_Probability"] >= threshold,
-            "Likely to Churn",
-            "Unlikely to Churn"
-        )
+        df["Churn_Probability"] = model.predict(df_scaled)
+        df["Churn_Prediction"] = (df["Churn_Probability"] >= threshold).astype(int)
 
         st.success("✅ Batch prediction completed")
         st.dataframe(df)
 
-        csv = df.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="⬇️ Download Prediction Results",
-            data=csv,
-            file_name="churn_predictions.csv",
-            mime="text/csv"
+            "⬇️ Download Predictions",
+            df.to_csv(index=False),
+            "churn_predictions.csv",
+            "text/csv"
         )
 
 # =====================================================
 # FOOTER
 # =====================================================
 st.divider()
-st.caption("Final Project • Customer Churn Prediction • Streamlit + TensorFlow")
-
+st.caption("© Customer Churn Prediction | Neural Network Model | Streamlit App")
